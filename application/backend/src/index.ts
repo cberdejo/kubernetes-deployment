@@ -6,11 +6,13 @@ import noteRoutes from "./routes/note.routes";
 import cors from "cors";
 
 const app = express();
-app.use(cors({
-    origin: 'http://localhost:5173', 
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'http://localhost:8080'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json());
 app.use("/api/v1", noteRoutes);
 
