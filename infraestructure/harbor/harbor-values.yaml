@@ -1,0 +1,12 @@
+expose:
+  # Entry Configuration via Ingress
+  type: ingress
+  tls:
+    enabled: false # To use  locally, we disable https
+  ingress:
+    hosts:
+      core: core.harbor.domain
+    className: nginx #    Minikube ingress by default uses nginx class
+
+externalURL: http://core.harbor.domain
+harborAdminPassword: "password"
