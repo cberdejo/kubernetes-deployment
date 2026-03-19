@@ -1,5 +1,14 @@
 # Phase 01 — Kubernetes Basics
 
+- **Core concepts to master in this phase**:
+  - **Kubernetes**
+  - **Minikube**
+  - **Pods**
+  - **Deployments**
+  - **Services**
+  - **NodePorts**
+
+
 ## What is Kubernetes?
 
 Kubernetes (K8s) is an open-source container orchestration platform originally developed by Google. It automates the deployment, scaling, and management of containerized applications.
