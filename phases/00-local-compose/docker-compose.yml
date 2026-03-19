@@ -24,7 +24,8 @@ services:
     env_file:
       - ./.env
     environment:
-      DATABASE_URI: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       BACKEND_HOST: 0.0.0.0
     depends_on:
       postgres:

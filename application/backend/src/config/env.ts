@@ -17,12 +17,13 @@ const rawEnv = cleanEnv(process.env, {
 
   POSTGRES_USER: str({ default: 'postgres' }),
   POSTGRES_PASSWORD: str({ default: 'postgres' }),
+  POSTGRES_HOST: str({ default: 'localhost' }),
+  POSTGRES_PORT: port({ default: 5432 }),
   POSTGRES_DB: str({ default: 'notesdb' }),
 
-  // Opcional: si se define, tendrá prioridad sobre la URL construida
   DATABASE_URI: str({
     desc: 'Connection string de PostgreSQL',
-    example: 'postgres://user:password@localhost:5432/notesdb',
+    example: 'postgres://user:password@postgres-service:5432/notesdb',
     default: '',
   }),
 });
@@ -31,5 +32,5 @@ export const env = {
   ...rawEnv,
   DATABASE_URI:
     rawEnv.DATABASE_URI ||
-    `postgres://${rawEnv.POSTGRES_USER}:${rawEnv.POSTGRES_PASSWORD}@localhost:5432/${rawEnv.POSTGRES_DB}`,
+    `postgres://${rawEnv.POSTGRES_USER}:${rawEnv.POSTGRES_PASSWORD}@${rawEnv.POSTGRES_HOST}:${rawEnv.POSTGRES_PORT}/${rawEnv.POSTGRES_DB}`,
 };
