@@ -4,9 +4,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Carga y valida variables de entorno de la API.
+ * Loads and validates API environment variables.
  *
- * Si `DATABASE_URI` no está definida, se construye a partir de:
+ * If `DATABASE_URI` is not defined, it will be constructed from:
  * - POSTGRES_USER
  * - POSTGRES_PASSWORD
  * - POSTGRES_DB
@@ -22,7 +22,7 @@ const rawEnv = cleanEnv(process.env, {
   POSTGRES_DB: str({ default: 'notesdb' }),
 
   DATABASE_URI: str({
-    desc: 'Connection string de PostgreSQL',
+    desc: 'PostgreSQL connection string',
     example: 'postgres://user:password@postgres-service:5432/notesdb',
     default: '',
   }),
