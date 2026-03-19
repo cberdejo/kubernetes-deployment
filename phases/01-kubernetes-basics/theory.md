@@ -6,6 +6,7 @@
   - **Pods**
   - **Deployments**
   - **Services**
+  - **Namespaces**
   - **NodePorts**
 
 
