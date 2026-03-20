@@ -1,69 +1,84 @@
 # Kubernetes Learning Roadmap
 
-This repository documents the learning process for building a modern platform based on Kubernetes.
+This repository tracks a practical learning journey to build a modern Kubernetes-based platform.
 
-The ultimate goal is to deploy real-world applications using:
+## End Goal
+
+Deploy and operate real-world applications using:
 
 - Kubernetes
 - Helm
-- ArgoCD (GitOps)
-- Harbor (container registry)
+- Argo CD (GitOps)
+- Harbor (private container registry)
 - Prometheus + Grafana (observability)
-- Sealed Secrets (secure secrets management)
+- Sealed Secrets (secure secret management)
 - Envoy Gateway / Ingress
-- architecture ready for production
 
-The learning is divided into incremental phases, starting from Docker Compose and progressing to a fully featured platform.
+By the end of the roadmap, the platform should be structured and operated with production-ready practices.
+
+## Learning Approach
+
+The roadmap is divided into incremental phases, starting with local container orchestration and progressing to a complete Kubernetes platform.
 
 ---
 
-# Learning Phases
+## Learning Phases
 
-## Phase 00 — Local Docker Compose
+### Phase 00 - Local Docker Compose
 
-Objective:
+**Objective**
 
-- understand the application architecture
-- comprehend how containers communicate
-- work with environment variables
-- understand data persistence
+- Understand the application architecture
+- Understand how containers communicate
+- Work with environment variables
+- Understand data persistence
 
-Technologies:
+**Technologies**
 
 - Docker
 - Docker Compose
-- containers
-- internal networking
+- Container networking
 
-Expected outcome:
+**Expected Outcome**
 
-The application works fully locally using:
+Run the full application locally with:
 
-- frontend
-- backend
-- postgres
-
----
-
-## Phase 01 — kubernetes basics
-
-Objective:
-
-- Set up a local Kubernetes cluster (in this projects, minikube will be used)
-- understand Pods
-- understand Deployments
-- understand Services
-- use kubectl
+- Frontend
+- Backend
+- PostgreSQL
 
 ---
 
-## Phase 02 — Kubernetes Application
+### Phase 01 - Kubernetes Basics
 
-Objective:
+**Objective**
 
-Migrate the Docker Compose application to Kubernetes.
+- Set up a local Kubernetes cluster (Minikube)
+- Understand Pods
+- Understand Deployments
+- Understand Services
+- Use `kubectl` effectively
 
-You will learn:
+**Technologies**
+
+- Kubernetes
+- Minikube
+- `kubectl`
+
+**Expected Outcome**
+
+Understand core Kubernetes resources and operate a local cluster confidently.
+
+---
+
+### Phase 02 - Kubernetes Application
+
+**Objective**
+
+- Deploy the [application](../application/) in Kubernetes
+- Model application components as Kubernetes resources
+
+**Technologies**
 
 - Deployments
 - Services
@@ -71,119 +86,131 @@ You will learn:
 - Secrets
 - PersistentVolumeClaims
 
----
+**Expected Outcome**
 
-## Phase 03 — Ingress
-
-Objective:
-
-- expose the application outside the cluster
-- HTTP routing
-- understand traffic flow
-
-Technologies:
-
-- Ingress
-- ingress controller
+Run the application on Kubernetes with configuration, networking, and persistence managed natively by the cluster.
 
 ---
 
-## Phase 04 — Production Practices
+### Phase 03 - Package Management and Templating
 
-Objective:
+**Objective**
 
-Operate applications in Kubernetes
+- Stop writing repetitive static YAML
+- Learn to package and configure applications dynamically
+- Prepare to install and manage third-party tools consistently
 
-- liveness probes
-- readiness probes
-- resource limits
-- autoscaling
+**Technologies**
 
----
+- Helm
 
-## Phase 05 — Helm
+**Expected Outcome**
 
-Objective:
-
-- package Kubernetes applications
-- parameterize deployments
-
-Technologies:
-
-- Helm charts
+Deploy applications through reusable and configurable Helm charts.
 
 ---
 
-## Phase 06 — GitOps
+### Phase 04 - Distributed Persistent Storage
 
-Objective:
+**Objective**
 
-Manage deployments via Git
+- Provide resilient cluster storage
+- Ensure stateful applications keep data across Pod restarts and rescheduling
 
-Technologies:
+**Technologies**
 
-- ArgoCD
+- Longhorn
+
+**Expected Outcome**
+
+Use persistent volumes backed by distributed storage for Kubernetes workloads.
 
 ---
 
-## Phase 07 — Observability
+### Phase 05 - Routing and Traffic Exposure (Layer 7)
 
-Objective:
+**Objective**
 
-Monitor the platform
+- Centralize and secure external traffic management
+- Replace manual `NodePort` exposure with domain-based routing policies
 
-Technologies:
+**Technologies**
+
+- Envoy Gateway
+- Kubernetes Gateway API
+
+**Expected Outcome**
+
+Expose services through managed HTTP routing with clearer, safer ingress control.
+
+---
+
+### Phase 06 - Private Container Registry
+
+**Objective**
+
+- Host container images privately inside your infrastructure
+- Reduce dependency on public registries
+
+**Technologies**
+
+- Harbor
+- Longhorn (persistent image storage)
+
+**Expected Outcome**
+
+Build, store, and pull private images reliably from an internal registry.
+
+---
+
+### Phase 07 - Secure Secrets Management
+
+**Objective**
+
+- Encrypt passwords, tokens, and certificates
+- Store encrypted secrets safely in source control
+
+**Technologies**
+
+- Sealed Secrets (Bitnami)
+
+**Expected Outcome**
+
+Manage secrets through Git without exposing sensitive values in plaintext.
+
+---
+
+### Phase 08 - Automation and GitOps
+
+**Objective**
+
+- Eliminate manual deployments
+- Use Git as the single source of truth for cluster state
+
+**Technologies**
+
+- Argo CD
+- Git (GitHub/GitLab)
+
+**Expected Outcome**
+
+Automatically synchronize cluster configuration from version-controlled manifests.
+
+---
+
+### Phase 09 - Observability and Monitoring
+
+**Objective**
+
+- Gain visibility into health, performance, and resource usage
+- Integrate monitoring as part of the GitOps workflow
+
+**Technologies**
 
 - Prometheus
 - Grafana
+- `kube-prometheus-stack`
 
----
+**Expected Outcome**
 
-## Phase 08 — Secrets Management
-
-Objective:
-
-Manage secrets securely
-
-Technologies:
-
-- Sealed Secrets
-
----
-
-## Phase 09 — Registry
-
-Objective:
-
-Manage container images
-
-Technologies:
-
-- Harbor
-
----
-
-## Phase 10 — Gateway
-
-Objective:
-
-Manage traffic in the platform
-
-Technologies:
-
-- Envoy Gateway
-
----
-
-## Phase 11 — Production Platform
-
-Objective:
-
-Build a production-ready platform
-
-Includes:
-
-- GitOps architecture
-- comprehensive observability
-- security
-- automated deployments
+Operate the platform with metrics, dashboards, and alerting-ready foundations.
