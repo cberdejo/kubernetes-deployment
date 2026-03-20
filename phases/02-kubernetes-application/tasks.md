@@ -236,18 +236,32 @@ flowchart LR
 
 ---
 
-### 8. Phase 02 Completion Criteria
+### 8. Mini summary checklist
 
-Mark this phase as complete when:
+#### 8.1. Setup & Initialization
+- [ ] Create and apply the namespace for the app (for example, `todo-app`).
+- [ ] Optionally set it as the current context namespace.
+- [ ] Build and load your local images into the cluster (Minikube/Kind).
 
-- [ ] Backend, frontend, and Postgres are running in Kubernetes as Deployments (or StatefulSet for DB if you choose).
-- [ ] Backend and Postgres have ClusterIP Services.
-- [ ] Frontend is exposed with a NodePort Service and reachable from outside the cluster.
-- [ ] Postgres uses a PVC for persistent data.
-- [ ] Non-sensitive configuration is in ConfigMaps.
-- [ ] Credentials are in Secrets.
-- [ ] The frontend can talk to the backend and the backend to Postgres using **Service names**, not static IPs.
-- [ ] You are able to explain, in your own words, what role each resource plays: Deployment, Service, ConfigMap, Secret, PVC.
+#### 8.2. Core workloads (Backend + Database + Frontend)
+- [ ] Deploy backend (`Deployment` + `ClusterIP Service`).
+- [ ] Deploy Postgres (`PVC` + `Secret` + `Deployment/StatefulSet` + `ClusterIP Service`).
+- [ ] Deploy frontend (`Deployment` + `NodePort Service`).
+
+#### 8.3. Configuration & Connectivity
+- [ ] Use `ConfigMap` for non-sensitive backend/frontend settings.
+- [ ] Use `Secret` for credentials.
+- [ ] Ensure communication uses Service DNS names (not `localhost` or Pod IPs).
+
+#### 8.4. Validation
+- [ ] Verify resources with `kubectl get pods,svc,pvc -n todo-app`.
+- [ ] Test end-to-end flow: frontend -> backend -> postgres.
+- [ ] Confirm persistence by deleting the Postgres Pod and checking data remains.
+
+#### 8.5. Quality checks
+- [ ] Verify labels/selectors are consistent across Deployments and Services.
+- [ ] Keep manifests clean and add comments only for important decisions.
+
 
 ---
 
