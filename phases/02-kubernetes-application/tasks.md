@@ -207,6 +207,18 @@ flowchart LR
     - connect to `postgres-service:5432`,
     - send HTTP requests to `frontend-service`/`backend-service` by Service name.
 
+- **6.3. Test Pod Restart and Validate Data Persistence**
+  - Create 1 or 2 notes using the app and confirm they exist.
+  - Manually delete the Postgres Pod:
+    - `kubectl get pods -n todo-app`
+    - `kubectl delete pod <postgres-pod-name> -n todo-app`
+  - Wait for the Deployment to automatically recreate the Pod (`kubectl get pods -n todo-app -w`) and reopen the app.
+  - Check if the notes you created are still there and explain your observations.
+  - Expected result:
+    - **Notes should not be lost** if Postgres is using the `PersistentVolumeClaim (postgres-pvc)`, because the data is stored on the persistent volume, not inside the Pod's ephemeral filesystem.
+    - If the database was not mounted to a persistent volume, the notes would be lost in case of a Pod restart.
+
+
 ---
 
 ### 7. Cleanup and basic best practices
