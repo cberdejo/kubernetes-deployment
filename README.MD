@@ -17,4 +17,5 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 00](/phases/00-local-compose/)         | Run the full app locally with Docker Compose. Understand container networking, use environment variables, and learn basics of data persistence.        |
 | [Phase 01](/phases/01-kubernetes-basics/)    | Learn Kubernetes fundamentals by working with Pods, Deployments, and Services. Practice basic cluster operations with `kubectl`.                      |
 | [Phase 02](/phases/02-kubernetes-application/)| Migrate the application from Docker Compose to Kubernetes. Use Deployments, Services, ConfigMaps, Secrets, and PersistentVolumeClaims (PVCs).          |
+| [Phase 03](/phases/03-package-managment/)    | Move from static YAML manifests to Helm charts. Learn templating, `values.yaml`, releases, and reusable package-based Kubernetes deployments.           |
 
