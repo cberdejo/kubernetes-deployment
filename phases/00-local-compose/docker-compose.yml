@@ -31,16 +31,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "${BACKEND_PORT:-9090}:${BACKEND_PORT:-9090}"
+
   frontend:
     build:
       context: ../../application/frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: "http://localhost:${BACKEND_PORT}/api/v1"
+        VITE_API_URL: "/api/v1"
     env_file:
       - ./.env
+    environment:
+      BACKEND_UPSTREAM: backend:${BACKEND_PORT:-9090}
     depends_on:
       - backend
     ports:

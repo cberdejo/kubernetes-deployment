@@ -1,0 +1,13 @@
+:80 {
+  root * /usr/share/caddy
+  encode gzip
+
+  handle /api/v1* {
+    reverse_proxy {$BACKEND_UPSTREAM}
+  }
+
+  handle {
+    try_files {path} /index.html
+    file_server
+  }
+}

@@ -15,18 +15,13 @@ COPY . .
 RUN npm run build
 
 
-FROM nginx:alpine AS runner
-
-WORKDIR /usr/share/nginx/html
-
-# Remove default nginx static assets
-RUN rm -rf ./*
+FROM caddy:2-alpine AS runner
 
 # Copy built files from Vite
-COPY --from=build /app/dist ./
+COPY --from=build /app/dist /usr/share/caddy
+COPY Caddyfile /etc/caddy/Caddyfile
 
-# Simple default nginx config (can be overridden with your own)
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
 

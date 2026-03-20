@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import './App.css';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 function App() {
   const [notes, setNotes] = useState([]);
