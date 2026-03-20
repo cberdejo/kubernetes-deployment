@@ -13,11 +13,9 @@ I recommend checking off each task as you complete it in this file.
   - Define a namespace (e.g., `todo-app`) to isolate all resources for this application.
   - Apply it: `kubectl apply -f namespace.yaml`
   - Verify: `kubectl get namespaces`
-
 - **1.2. Set the namespace as default context (optional but recommended)**
   - `kubectl config set-context --current --namespace=todo-app`
   - This avoids having to pass `-n todo-app` in every command.
-
 - **1.3. Identify what you need to deploy**
   - Components: frontend, backend, database.
   - For each one, determine:
@@ -25,7 +23,6 @@ I recommend checking off each task as you complete it in this file.
     - exposed ports,
     - required environment variables,
     - whether it needs persistent storage.
-
 - **1.4. Build and load container images (local cluster only)**
   - In a future phase, a private registry for Images (Harbor) will be used to store image. For now:
     - Build each image locally: `docker build -t <image>:<tag> .`
@@ -37,7 +34,6 @@ I recommend checking off each task as you complete it in this file.
 
 ### 2. Backend Deployment
 
-
 - **2.1. Create the backend Deployment**
   - Suggested file: `backend-deployment.yaml`.
   - It should include:
@@ -45,14 +41,12 @@ I recommend checking off each task as you complete it in this file.
     - The backend container image,
     - The correct `containerPort`,
     - The minimum environment variables required to start.
-
 - **2.2. Create the backend Service**
   - Suggested file: `backend-service.yaml`.
   - Type `ClusterIP`.
   - `metadata.namespace: todo-app`.
   - Exposes the HTTP port of the backend.
   - Uses labels (`selector`) that match those of the Deployment.
-
 - **2.3. Apply and test**
   - `kubectl apply -f backend-deployment.yaml`
   - `kubectl apply -f backend-service.yaml`
@@ -72,7 +66,6 @@ I recommend checking off each task as you complete it in this file.
     - `storageClassName` (if needed),
     - `resources.requests.storage` (e.g., `1Gi`),
     - `accessModes: [ReadWriteOnce]`.
-
 - **3.2. Create a Secret for Postgres credentials**
   - Suggested file: `postgres-secret.yaml`.
   - `metadata.namespace: todo-app`.
@@ -81,19 +74,16 @@ I recommend checking off each task as you complete it in this file.
     - `POSTGRES_PASSWORD`,
     - `POSTGRES_DB`.
   - Reference them later using `envFrom` or `env`.
-
 - **3.3. Create the Postgres Deployment (or simple StatefulSet)**
   - Suggested file: `postgres-deployment.yaml`.
   - `metadata.namespace: todo-app`.
   - Mount the PVC at the data path (e.g., `/var/lib/postgresql/data`).
   - Use environment variables from the Secret.
-
 - **3.4. Create the Postgres Service**
   - Suggested file: `postgres-service.yaml`.
   - Type `ClusterIP`.
   - `metadata.namespace: todo-app`.
   - Standard port 5432.
-
 - **3.5. Apply and verify**
   - `kubectl apply -f postgres-pvc.yaml`
   - `kubectl apply -f postgres-secret.yaml`
@@ -114,13 +104,11 @@ I recommend checking off each task as you complete it in this file.
     - database name,
     - host (`POSTGRES_HOST=postgres` → name of the Service),
     - port.
-
 - **4.2. Adjust the backend Deployment**
   - Import:
     - ConfigMap with `envFrom` or `env`,
     - Postgres Secret (if the backend needs credentials directly).
   - Make sure the backend points to the **Postgres Service** (`postgres.todo-app.svc.cluster.local` or simply `postgres` within the same namespace), not `localhost`.
-
 - **4.3. Apply changes and test**
   - `kubectl apply -f backend-configmap.yaml`
   - `kubectl apply -f backend-deployment.yaml` (updated).
@@ -136,7 +124,6 @@ I recommend checking off each task as you complete it in this file.
   - Suggested file: `frontend-deployment.yaml`.
   - Use the current frontend image.
   - Make sure the container exposes the correct port.
-
 - **5.2. Configure the backend URL**
   - Decide whether the backend URL is:
     - compiled into the image (build-time), or
@@ -144,13 +131,11 @@ I recommend checking off each task as you complete it in this file.
   - If runtime:
     - create `frontend-configmap.yaml` with the backend URL (using the `backend` Service).
     - mount the config in the Pod.
-
 - **5.3. Create the frontend Service**
   - Suggested file: `frontend-service.yaml`.
   - Type `NodePort` to expose the app outside the cluster.
   - Keep `port` and `targetPort` aligned with the container port mapping.
   - Define a fixed `nodePort` (for example, `30080`) for predictable access during testing.
-
 - **5.4. Apply and test**
   - `kubectl apply -f frontend-deployment.yaml`
   - `kubectl apply -f frontend-service.yaml`
@@ -230,12 +215,10 @@ flowchart LR
   - Ensure that:
     - `metadata.name` for Deployments/Services/ConfigMaps/Secrets are consistent,
     - labels (`labels`) and `selectors` match up (e.g., `app: backend` on all backend resources).
-
 - **7.2. Separate sensitive/non-sensitive config**
   - Review:
     - what belongs in ConfigMaps,
     - what belongs in Secrets.
-
 - **7.3. Document decisions**
   - Add brief comments in YAML manifests only when necessary to remember important decisions (for example, why you chose a certain PVC size).
 
