@@ -6,6 +6,7 @@ The goal of this phase is to **deploy the** [application](../../application) **w
   - **ConfigMaps**
   - **Secrets**
   - **PersistentVolumeClaims (PVCs)**
+  - **Services (ClusterIP + NodePort)**
 
 It's not just about “making it work”, but understanding **why** these Kubernetes objects exist and how they connect.
 
@@ -94,7 +95,30 @@ How this maps to Docker Compose:
 
 ---
 
-## 4. How Everything Connects in Your App
+## 4. Services and NodePort
+
+Kubernetes Services define how Pods are reached:
+
+- **ClusterIP** (default): only reachable inside the cluster.
+- **NodePort**: opens a fixed port on each node, so traffic from outside the cluster can reach the Service.
+
+In this phase, the recommended pattern is:
+
+- Keep **backend** and **postgres** as `ClusterIP` (internal communication only).
+- Expose **frontend** as `NodePort` so you can open the app from your host machine.
+
+Example mental model:
+
+- Browser -> `<node-ip>:30080` (NodePort on node)
+- NodePort Service (`frontend-service`) -> frontend Pods (targetPort/containerPort)
+- Frontend -> `backend-service` (ClusterIP)
+- Backend -> `postgres-service` (ClusterIP)
+
+`NodePort` is useful for local labs (Minikube/Kind). In production, this is usually replaced by an Ingress + LoadBalancer setup.
+
+---
+
+## 5. How Everything Connects in The App
 
 For a classic **frontend + backend + database** app in Kubernetes:
 
@@ -113,12 +137,11 @@ For a classic **frontend + backend + database** app in Kubernetes:
 - **Frontend:**
   - Deployment,
   - ConfigMap for backend URL (if required at build/runtime),
-  - ClusterIP Service (`frontend`).
+  - NodePort Service (`frontend-service`) for external access.
 
 Networking flow:
 
 - `frontend` calls the `backend` Service,
 - `backend` calls the `postgres` Service.
 
-In this phase, **you don't expose anything externally** (no Ingress/LoadBalancer yet)—that's for the next phase.
----
+In this phase, only the frontend is exposed with **NodePort** for local access. Ingress/LoadBalancer will be explained in the next phases.
