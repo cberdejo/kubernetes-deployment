@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-configmap
+  namespace: todo-app
+data:
+  BACKEND_HOST: "0.0.0.0"
+  BACKEND_PORT: "8080"
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"

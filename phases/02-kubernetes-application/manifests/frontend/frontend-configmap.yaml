@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-configmap
+  namespace: todo-app
+data:
+  VITE_API_URL: "/api/v1"
+  BACKEND_UPSTREAM: "backend-service.todo-app.svc.cluster.local:8080"
