@@ -110,7 +110,24 @@ Deploy applications through reusable and configurable Helm charts.
 
 ---
 
-### Phase 04 - Distributed Persistent Storage
+### Phase 04 - Secure Secrets Management
+
+**Objective**
+
+- Encrypt passwords, tokens, and certificates
+- Store encrypted secrets safely in source control
+
+**Technologies**
+
+- Sealed Secrets (Bitnami)
+
+**Expected Outcome**
+
+Manage secrets through Git without exposing sensitive values in plaintext.
+
+---
+
+### Phase 05 - Distributed Persistent Storage
 
 **Objective**
 
@@ -127,7 +144,7 @@ Use persistent volumes backed by distributed storage for Kubernetes workloads.
 
 ---
 
-### Phase 05 - Routing and Traffic Exposure (Layer 7)
+### Phase 06 - Routing and Traffic Exposure (Layer 7)
 
 **Objective**
 
@@ -145,7 +162,7 @@ Expose services through managed HTTP routing with clearer, safer ingress control
 
 ---
 
-### Phase 06 - Private Container Registry
+### Phase 07 - Private Container Registry
 
 **Objective**
 
@@ -160,23 +177,6 @@ Expose services through managed HTTP routing with clearer, safer ingress control
 **Expected Outcome**
 
 Build, store, and pull private images reliably from an internal registry.
-
----
-
-### Phase 07 - Secure Secrets Management
-
-**Objective**
-
-- Encrypt passwords, tokens, and certificates
-- Store encrypted secrets safely in source control
-
-**Technologies**
-
-- Sealed Secrets (Bitnami)
-
-**Expected Outcome**
-
-Manage secrets through Git without exposing sensitive values in plaintext.
 
 ---
 
