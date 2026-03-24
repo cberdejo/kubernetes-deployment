@@ -1,4 +1,4 @@
-## Phase 02 — Kubernetes Application (Theory)
+## Phase 02 — Kubernetes Application 
 
 The goal of this phase is to **deploy the** [application](../../application) **with Kubernetes**, gaining an understanding of the essential resources needed for a typical web app (frontend + backend + database) to work properly inside a Kubernetes cluster.
 
