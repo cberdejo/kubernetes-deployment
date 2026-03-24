@@ -1,7 +1,16 @@
 # Kubernetes Learning Phases
 
-This section of the repository gathers my hands-on Kubernetes learning path in a practical, progressive way.  
-The goal is to make each phase useful both for my own review and for anyone who wants to learn by following real examples.
+This section of the repository gathers my hands-on Kubernetes learning path in a practical, progressive way. The goal is to make each phase useful both for my own review and for anyone who wants to learn by following real examples.
+
+This project is focused on real-world application architecture and operations, covering the following key technologies and tools. This architecture is one of many possible approaches, and I chose this stack based on my hands-on experience working with these technologies:
+
+- **Kubernetes** for orchestration
+- **Helm** for packaging and deploying applications
+- **Argo CD** for GitOps-based deployment automation
+- **Harbor** as a private container registry
+- **Prometheus** and **Grafana** for monitoring and observability
+- **Sealed Secrets** for secure secret management in Kubernetes
+- **Envoy Gateway** or Ingress controllers for external access and routing
 
 The project is still a work in progress, and new phases will be added over time.
 
