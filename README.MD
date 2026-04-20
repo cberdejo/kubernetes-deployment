@@ -27,6 +27,7 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 01](/phases/01-kubernetes-basics/)    | Learn Kubernetes fundamentals by working with Pods, Deployments, and Services. Practice basic cluster operations with `kubectl`.                      |
 | [Phase 02](/phases/02-kubernetes-application/)| Migrate the application from Docker Compose to Kubernetes. Use Deployments, Services, ConfigMaps, Secrets, and PersistentVolumeClaims (PVCs).          |
 | [Phase 03](/phases/03-package-managment/)    | Move from static YAML manifests to Helm charts. Learn templating, `values.yaml`, releases, and reusable package-based Kubernetes deployments.           |
+| [Phase 04](/phases/04-secure-secrets-managment/)| Secure application secrets with Sealed Secrets. Learn encryption workflow, Helm integration, and GitOps-friendly secret handling in Kubernetes.       |
 
 ## Interesting Lecture
 [Kubernetes docs](https://kubernetes.io/docs/home/)
