@@ -1,0 +1,5 @@
+sealed-secrets:
+  # fullnameOverride ensures the controller is always named "sealed-secrets".
+  # kubeseal uses this name via --controller-name, so keeping it stable
+  # avoids having to change every kubeseal invocation when the release name changes.
+  fullnameOverride: sealed-secrets
