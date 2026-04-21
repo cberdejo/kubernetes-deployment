@@ -26,7 +26,7 @@ I recommend checking off each task as you complete it in this file.
 - **1.4. Build and load container images (local cluster only)**
   - In a future phase, a private registry for Images (Harbor) will be used to store image. For now:
     - Build each image locally: `docker build -t <image>:<tag> .`
-    - Load it into your cluster nodes: `minikube image load<image>:<tag>`
+    - Load it into your cluster nodes: `minikube image load <image>:<tag>`
     - In the corresponding Deployment manifests, set `imagePullPolicy: IfNotPresent` to avoid unnecessary pull attempts.
   - Repeat this for every component that uses a custom image (backend, frontend, etc.).
 

@@ -32,6 +32,10 @@ The project is still a work in progress, and new phases will be added over time.
 ## Interesting Lecture
 [Kubernetes docs](https://kubernetes.io/docs/home/)
 
+[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)
+
+[Helms Resources](https://github.com/cdwv/awesome-helm)
+
 [Kubernetes Secrets Management: Vault vs Sealed Secrets vs External Secrets (2025)](https://atmosly.com/blog/kubernetes-secrets-management-vault-vs-sealed-secrets-vs-external-secrets-2025)
 
 [How to Structure Your Argo CD Repositories Using Application Sets](https://codefresh.io/blog/how-to-structure-your-argo-cd-repositories-using-application-sets/)
