@@ -258,3 +258,133 @@ It is commonly used for local debugging and quick validation without exposing re
 The cluster DNS identity used for Service-to-Service communication.
 Within the same namespace, applications can use the Service name (for example, `postgres`);
 the fully qualified form is `<service>.<namespace>.svc.cluster.local`.
+
+---
+
+## Phase 03 - Package Management
+
+### Helm
+
+A package manager for Kubernetes that simplifies installing, upgrading, and managing applications.
+It combines templating and release management to avoid maintaining many static YAML files.
+
+---
+
+### Helm Chart
+
+The package format used by Helm to describe a Kubernetes application.
+A chart contains metadata, default values, and templates for Kubernetes resources.
+
+---
+
+### Chart.yaml
+
+The metadata file inside a Helm chart.
+It defines information such as chart name, version, description, and dependencies.
+
+---
+
+### values.yaml
+
+The default configuration file for a Helm chart.
+It provides variable values that templates consume to render environment-specific manifests.
+
+---
+
+### Template (Helm)
+
+A Kubernetes manifest written with Go Template syntax and placeholders.
+Templates are rendered into final YAML using chart values at install or upgrade time.
+
+---
+
+### Release
+
+A deployed instance of a Helm chart in a Kubernetes cluster.
+The same chart can produce multiple releases with different names and values.
+
+---
+
+### Revision
+
+A version in the history of a Helm release.
+Each successful upgrade creates a new revision that can be inspected or rolled back to.
+
+---
+
+### Rollback (Helm)
+
+The operation that restores a release to a previous revision.
+It is used to recover quickly when a new deployment introduces issues.
+
+---
+
+### helm install
+
+A Helm command that creates a new release from a chart.
+It can use default values or custom values files for a target environment.
+
+---
+
+### helm upgrade
+
+A Helm command that updates an existing release with new templates or values.
+It applies controlled configuration changes while preserving release history.
+
+---
+
+## Phase 04 - Secure Secrets Management
+
+### SealedSecret
+
+A custom Kubernetes resource (`bitnami.com/v1alpha1`) that stores encrypted secret data safely in Git.
+The Sealed Secrets controller decrypts it inside the cluster and creates a regular Kubernetes `Secret`.
+
+---
+
+### kubeseal
+
+A CLI tool used to encrypt a plaintext Kubernetes `Secret` into a `SealedSecret`.
+It uses the cluster public certificate so only the matching controller private key can decrypt the data.
+
+---
+
+### Sealed Secrets Controller
+
+The in-cluster controller that watches `SealedSecret` resources and decrypts them into native Kubernetes `Secret` objects.
+It is the component that holds the private key material required for decryption.
+
+---
+
+### Asymmetric Encryption
+
+An encryption model that uses a public key to encrypt and a private key to decrypt.
+In Sealed Secrets, developers seal data with the public key, and only the cluster controller can unseal it with the private key.
+
+---
+
+### External Secrets Operator (ESO)
+
+A Kubernetes operator that syncs secrets from external providers (such as AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, or Vault) into Kubernetes `Secret` resources.
+It enables GitOps references to external secret sources without storing secret values in Git.
+
+---
+
+### HashiCorp Vault
+
+A centralized secret management platform that provides secure storage, fine-grained access control, auditing, and dynamic credentials.
+In Kubernetes, it can be integrated through agents, CSI, or operators such as ESO.
+
+---
+
+### Secret Rotation
+
+The process of periodically replacing secret values (passwords, tokens, keys) to reduce risk if credentials are exposed.
+Rotation can be manual (for example, resealing values) or automated when using external secret backends.
+
+---
+
+### Encryption at Rest
+
+A security mechanism that keeps stored data encrypted on disk.
+For Kubernetes secrets, this refers to encrypting secret data in etcd rather than storing it as plain Base64-encoded values.

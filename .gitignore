@@ -1,5 +1,8 @@
 node_modules
 
-# Archivos de entorno (no commitear secretos)
+# Env files
 .env
 *.env
+
+# Helm dependencies (regenrate with helm dependency update) 
+charts/

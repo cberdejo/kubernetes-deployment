@@ -234,7 +234,10 @@ Before upgrading with new values, move credentials out of CLI flags and into a r
 
 ---
 
-## 7. Phase 03 Success Criteria
+## 7. Recommended Reading
+[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)
+
+## 8. Phase 03 Success Criteria
 
 [ ] The `todo-app` Chart was created and default templates were cleaned up.
 [ ] Static manifests have been parameterized (images, replicas, ports, persistence) pointing to `values.yaml`.

@@ -27,10 +27,17 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 01](/phases/01-kubernetes-basics/)    | Learn Kubernetes fundamentals by working with Pods, Deployments, and Services. Practice basic cluster operations with `kubectl`.                      |
 | [Phase 02](/phases/02-kubernetes-application/)| Migrate the application from Docker Compose to Kubernetes. Use Deployments, Services, ConfigMaps, Secrets, and PersistentVolumeClaims (PVCs).          |
 | [Phase 03](/phases/03-package-managment/)    | Move from static YAML manifests to Helm charts. Learn templating, `values.yaml`, releases, and reusable package-based Kubernetes deployments.           |
+| [Phase 04](/phases/04-secure-secrets-managment/)| Secure application secrets with Sealed Secrets. Learn encryption workflow, Helm integration, and GitOps-friendly secret handling in Kubernetes.       |
 
 ## Interesting Lecture
 [Kubernetes docs](https://kubernetes.io/docs/home/)
 
+[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)
+
+[Helms Resources](https://github.com/cdwv/awesome-helm)
+
 [Kubernetes Secrets Management: Vault vs Sealed Secrets vs External Secrets (2025)](https://atmosly.com/blog/kubernetes-secrets-management-vault-vs-sealed-secrets-vs-external-secrets-2025)
 
 [How to Structure Your Argo CD Repositories Using Application Sets](https://codefresh.io/blog/how-to-structure-your-argo-cd-repositories-using-application-sets/)
+
+[How to Model Your GitOps Environments and Promote Releases between Them](https://codefresh.io/blog/how-to-model-your-gitops-environments-and-promote-releases-between-them/)

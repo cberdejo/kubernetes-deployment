@@ -1,4 +1,4 @@
-## Phase 03 — Package Management & Templating (Theory)
+## Phase 03 — Package Management & Templating 
 
 The goal of this phase is to **transition from static YAML files to dynamic templates using Helm**, gaining an understanding of how to package, configure, and distribute Kubernetes applications efficiently. 
 
