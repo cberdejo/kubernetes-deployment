@@ -32,6 +32,8 @@ The project is still a work in progress, and new phases will be added over time.
 ## Interesting Lecture
 [Kubernetes docs](https://kubernetes.io/docs/home/)
 
+[Kubernetes Deployment Antipatterns – part 1](https://codefresh.io/blog/kubernetes-antipatterns-1/)
+
 [Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)
 
 [Helms Resources](https://github.com/cdwv/awesome-helm)
@@ -41,3 +43,7 @@ The project is still a work in progress, and new phases will be added over time.
 [How to Structure Your Argo CD Repositories Using Application Sets](https://codefresh.io/blog/how-to-structure-your-argo-cd-repositories-using-application-sets/)
 
 [How to Model Your GitOps Environments and Promote Releases between Them](https://codefresh.io/blog/how-to-model-your-gitops-environments-and-promote-releases-between-them/)
+
+[What is Longhorn](https://longhorn.io/docs/latest/what-is-longhorn/)
+
+[Kubernetes Persistent Volumes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
