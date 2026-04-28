@@ -4,14 +4,16 @@ This guide explains how to install Longhorn using a Helm wrapper chart and how t
 
 **Conventions used in this guide:**
 
-| Key | Value |
-| --- | --- |
-| Longhorn chart name | `cluster-longhorn` |
-| Longhorn namespace | `longhorn-system` |
-| App chart name | `todo-app` |
-| App release name | `my-app` |
-| App namespace | `todo` |
-| Longhorn StorageClass | `longhorn` |
+
+| Key                   | Value              |
+| --------------------- | ------------------ |
+| Longhorn chart name   | `cluster-longhorn` |
+| Longhorn namespace    | `longhorn-system`  |
+| App chart name        | `todo-app`         |
+| App release name      | `my-app`           |
+| App namespace         | `todo`             |
+| Longhorn StorageClass | `longhorn`         |
+
 
 ---
 
@@ -165,7 +167,58 @@ volumeMounts:
 
 ---
 
-## Step 4 - Deploy the updated todo-app
+## Step 4 - Publish app images to Docker Hub
+
+Until the private registry phase is implemented, use Docker Hub as the external image registry. This replaces the old local-cluster flow where images were built locally and loaded into Minikube.
+
+From the repository root:
+
+```bash
+export DOCKERHUB_USER="<your-dockerhub-user>"
+export IMAGE_TAG="1.0.0"
+
+docker login
+
+docker build \
+  -t docker.io/${DOCKERHUB_USER}/todo-backend:${IMAGE_TAG} \
+  ./application/backend
+
+docker push docker.io/${DOCKERHUB_USER}/todo-backend:${IMAGE_TAG}
+
+docker build \
+  --build-arg VITE_API_URL=/api/v1 \
+  -t docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG} \
+  ./application/frontend
+
+docker push docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG}
+```
+
+Then update the answer chart values so Kubernetes pulls the images from Docker Hub instead of expecting local node images:
+
+```yaml
+# answer/todo-app/values.yaml
+frontend:
+  image:
+    repository: "docker.io/<your-dockerhub-user>/todo-frontend"
+    tag: "1.0.0"
+  imagePullPolicy: IfNotPresent
+
+backend:
+  image:
+    repository: "docker.io/<your-dockerhub-user>/todo-backend"
+    tag: "1.0.0"
+  imagePullPolicy: IfNotPresent
+```
+
+The Deployment templates do not need hardcoded image changes. They already read the image repository and tag from `values.yaml`:
+
+```yaml
+image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+```
+
+---
+
+## Step 5 - Deploy the updated todo-app
 
 ```bash
 helm upgrade --install my-app ./todo-app \
@@ -176,7 +229,7 @@ helm upgrade --install my-app ./todo-app \
 
 ---
 
-## Step 5 - Verify
+## Step 6 - Verify
 
 ```bash
 # PVC should be Bound to a Longhorn volume
@@ -225,15 +278,10 @@ Longhorn is stateless from the application's perspective. Rotating DB credential
 These are optional, but they help you truly understand Longhorn behavior.
 
 1. **Replica verification** - after deployment, open Longhorn UI, locate the PostgreSQL volume, and confirm replicas exist on each node. Compare "healthy" vs "degraded" states.
-
 2. **Pod eviction test** - delete the PostgreSQL Pod. Observe Kubernetes rescheduling. Confirm PVC reattaches and data is intact (todos created before deletion still exist).
-
 3. **Reclaim policy test** - set StorageClass `reclaimPolicy` to `Retain`, delete the PVC, and observe the Longhorn volume remains. Then delete it manually.
-
 4. **Snapshot** - create a PostgreSQL volume snapshot in Longhorn UI. Insert test data. Delete the data. Restore from snapshot and confirm data returns.
-
 5. **Single vs multiple replicas** - change `longhorn.persistence.defaultClassReplicaCount` in `values.yaml` and observe volume health in UI. Use `1` for a single-node lab; use `3` when you have at least three storage nodes.
-
 6. **Node drain** - drain a node (`kubectl drain <node> --ignore-daemonsets`). Observe Longhorn rebuilding replicas on remaining nodes. Uncordon and observe rebalancing.
 
 ---
