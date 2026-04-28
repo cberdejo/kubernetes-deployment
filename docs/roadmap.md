@@ -13,6 +13,7 @@ Deploy and operate real-world applications using:
 - Prometheus + Grafana (observability)
 - Sealed Secrets (secure secret management)
 - Envoy Gateway / Ingress
+- authentik (identity provider and SSO)
 
 By the end of the roadmap, the platform should be structured and operated with production-ready practices.
 
@@ -162,7 +163,28 @@ Expose services through managed HTTP routing with clearer, safer ingress control
 
 ---
 
-### Phase 07 - Private Container Registry
+### Phase 07 - Identity and Access Management
+
+**Objective**
+
+- Centralize authentication and access control
+- Add SSO to the application using a dedicated identity provider
+- Protect internal platform UIs such as Longhorn behind authenticated access
+
+**Technologies**
+
+- authentik
+- OpenID Connect (OIDC)
+- OAuth2
+- Forward auth / identity-aware proxy patterns
+
+**Expected Outcome**
+
+Use authentik as the platform identity provider, with application login and protected access to internal services such as the Longhorn UI.
+
+---
+
+### Phase 08 - Private Container Registry
 
 **Objective**
 
@@ -180,7 +202,7 @@ Build, store, and pull private images reliably from an internal registry.
 
 ---
 
-### Phase 08 - Automation and GitOps
+### Phase 09 - Automation and GitOps
 
 **Objective**
 
@@ -198,7 +220,7 @@ Automatically synchronize cluster configuration from version-controlled manifest
 
 ---
 
-### Phase 09 - Observability and Monitoring
+### Phase 10 - Observability and Monitoring
 
 **Objective**
 
