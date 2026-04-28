@@ -1,9 +1,10 @@
-global: {}
+global:
+  imagePullSecrets: []
 
 frontend:
   replicaCount: 1
   image:
-    repository: frontend
+    repository: "docker.io/your-dockerhub-user/todo-frontend"
     tag: "1.0.0"
   imagePullPolicy: IfNotPresent
   containerPort: 80
@@ -19,7 +20,7 @@ frontend:
 backend:
   replicaCount: 1
   image:
-    repository: backend
+    repository: "docker.io/your-dockerhub-user/todo-backend"
     tag: "1.0.0"
   imagePullPolicy: IfNotPresent
   containerPort: 8080
