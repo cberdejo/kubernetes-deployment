@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "todo-app.fullname" . }}-frontend-config
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  VITE_API_URL: {{ .Values.frontend.config.viteApiUrl | quote }}
+  BACKEND_UPSTREAM: {{ default (printf "%s-backend:%v" (include "todo-app.fullname" .) .Values.backend.service.port) .Values.frontend.config.backendUpstream | quote }}

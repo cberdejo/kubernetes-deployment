@@ -1,0 +1,55 @@
+global: {}
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: frontend
+    tag: "1.0.0"
+  imagePullPolicy: IfNotPresent
+  containerPort: 80
+  service:
+    type: NodePort
+    port: 3000
+    targetPort: 80
+    nodePort: 30080
+  config:
+    viteApiUrl: "/api/v1"
+    backendUpstream: ""
+
+backend:
+  replicaCount: 1
+  image:
+    repository: backend
+    tag: "1.0.0"
+  imagePullPolicy: IfNotPresent
+  containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  config:
+    host: "0.0.0.0"
+    port: "8080"
+    postgresHost: ""
+    postgresPort: "5432"
+  existingSecret: ""
+
+postgres:
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: "15.10"
+  imagePullPolicy: IfNotPresent
+  containerPort: 5432
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+  secretName: "todo-db-secret"
+  existingSecret: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: longhorn

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "todo-app.fullname" . }}-backend-config
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+data:
+  BACKEND_HOST: {{ .Values.backend.config.host | quote }}
+  BACKEND_PORT: {{ .Values.backend.config.port | quote }}
+  POSTGRES_HOST: {{ default (printf "%s-postgres" (include "todo-app.fullname" .)) .Values.backend.config.postgresHost | quote }}
+  POSTGRES_PORT: {{ .Values.backend.config.postgresPort | quote }}
