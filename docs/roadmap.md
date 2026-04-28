@@ -144,7 +144,7 @@ Use persistent volumes backed by distributed storage for Kubernetes workloads.
 
 ---
 
-### Phase 06 - Routing and Traffic Exposure (Layer 7)
+### Phase 06 - Routing and Traffic Exposure 
 
 **Objective**
 

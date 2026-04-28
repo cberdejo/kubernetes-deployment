@@ -29,6 +29,19 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 03](/phases/03-package-managment/)    | Move from static YAML manifests to Helm charts. Learn templating, `values.yaml`, releases, and reusable package-based Kubernetes deployments.           |
 | [Phase 04](/phases/04-secure-secrets-managment/)| Secure application secrets with Sealed Secrets. Learn encryption workflow, Helm integration, and GitOps-friendly secret handling in Kubernetes.       |
 
+## Recommended Lab Environment
+
+Up to module 5 (from Phase 00 to Phase 04), **Minikube** is enough for most of the exercises. It is a practical choice to learn the Kubernetes basics, deploy applications, work with Helm, and understand secret management locally without needing a more complex setup.
+
+From that point on, **Minikube starts to fall short**. It is great for learning core concepts, but it is not the best environment for more realistic scenarios involving high availability, multi-node scheduling, storage behavior, GitOps flows across environments, ingress/gateway experimentation, or production-like operations.
+
+For the next stages, it is better to move to more realistic alternatives such as:
+
+- **Talos Linux** on virtual machines or bare metal, if you want to learn Kubernetes with an immutable, API-driven operating system designed specifically for clusters.
+- **A real multi-node cluster** on physical machines, mini PCs, or a homelab, if you want hands-on experience with networking, storage, failure scenarios, and operations closer to production.
+- **k3s** on VMs or lightweight servers, if you want a simpler but realistic multi-node cluster that is easier to bootstrap and maintain.
+- **Managed Kubernetes** such as **EKS**, **GKE**, or **AKS**, if you want to practice with cloud-native workflows and understand how Kubernetes is typically consumed in real companies.
+
 ## Interesting Lecture
 [Kubernetes docs](https://kubernetes.io/docs/home/)
 

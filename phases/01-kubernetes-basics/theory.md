@@ -53,6 +53,17 @@ Minikube is a tool that creates a single-node Kubernetes cluster locally. It is 
 
 It runs the entire control plane and a worker node inside a VM or container on your machine.
 
+For this learning path, Minikube is a very good fit up to module 5. It is enough to learn Kubernetes fundamentals, deploy applications, work with Services, ConfigMaps, Secrets, PVCs, Helm, and the basics of sealed secret workflows without the operational overhead of a more advanced cluster.
+
+The main limitation is that Minikube is usually a local single-node lab. That makes it perfect for early phases, but less realistic once the learning path starts depending on multi-node scheduling, distributed storage, higher availability, and production-like infrastructure behavior.
+
+When you reach those later stages, common real-world alternatives are:
+
+- **Talos Linux** on VMs or bare metal, if you want a modern Kubernetes-focused operating system and a cluster managed through an API-first model.
+- **A real multi-node cluster** on physical machines or a homelab, if you want direct experience with networking, disks, node failures, and production-like operations.
+- **k3s** on VMs or small servers, if you want a lightweight but realistic multi-node Kubernetes environment that is easier to bootstrap.
+- **Managed Kubernetes** such as **EKS**, **GKE**, or **AKS**, if you want to practice with the cloud model most companies use in production.
+
 ### Key commands
 
 ```bash

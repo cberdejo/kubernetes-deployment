@@ -1,6 +1,10 @@
-# Phase 05,  Distributed Persistent Storage
+# Phase 05 Distributed Persistent Storage
 
 Choosing the right storage backend for Kubernetes is not optional when you run stateful workloads. Below is a deep dive into the three most common approaches for persistent storage in a self-hosted cluster: **Longhorn**, **Rook/Ceph**, and **NFS/hostPath**, what they are, how they work, and when to pick each.
+
+This is also the phase where **Minikube starts to fall short** as the main lab environment. Up to this point, a local single-node cluster is enough for most exercises, but distributed persistent storage is exactly where you begin to need a more realistic setup. Replication across nodes, storage failure domains, RWX scenarios, and production-like recovery behavior are difficult or impossible to understand properly in a simple Minikube-only lab.
+
+From here, it makes more sense to continue with alternatives such as **Talos Linux** on VMs or bare metal, a **real multi-node cluster** in a homelab, **k3s** on several machines or virtual machines, or a **managed Kubernetes service** like **EKS**, **GKE**, or **AKS** if the goal is to learn cloud-oriented operations.
 
 **Core concepts to master in this phase:**
 - **PersistentVolume / PersistentVolumeClaim / StorageClass**, the Kubernetes storage API
