@@ -4,7 +4,8 @@ global:
 frontend:
   replicaCount: 1
   image:
-    repository: "docker.io/your-dockerhub-user/todo-frontend"
+    # TODO: Replace with your actual Docker image
+    repository: "docker.io/YOUR_DOCKERHUB_USER/todo-frontend"
     tag: "1.0.0"
   imagePullPolicy: IfNotPresent
   containerPort: 80
@@ -20,7 +21,8 @@ frontend:
 backend:
   replicaCount: 1
   image:
-    repository: "docker.io/your-dockerhub-user/todo-backend"
+    # TODO: Replace with your actual Docker image
+    repository: "docker.io/YOUR_DOCKERHUB_USER/todo-backend"
     tag: "1.0.0"
   imagePullPolicy: IfNotPresent
   containerPort: 8080
