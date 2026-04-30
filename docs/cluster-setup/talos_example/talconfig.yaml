@@ -1,0 +1,41 @@
+---
+clusterName: talos-k8s-lab
+talosVersion: v1.12.6
+kubernetesVersion: v1.35.3
+# The Talos Docker provisioner assigns 10.5.0.2 to the first control plane node
+endpoint: https://10.5.0.2:6443
+cniConfig:
+    name: none
+
+patches:
+    - |-
+        machine:
+          kubelet:
+            extraArgs:
+              rotate-server-certificates: "true"
+
+controlPlane:
+    patches:
+        - |-
+            cluster:
+              proxy:
+                disabled: true
+
+nodes:
+    # iscsi-tools + util-linux-tools are required by Longhorn v1.
+    # For Docker: generate a custom image at https://factory.talos.dev with these
+    # extensions, then pass --talos-image <factory-url>:v1.12.6 to cluster create.
+    - hostname: controlplane-1
+      ipAddress: 10.5.0.2
+      controlPlane: true
+      schematic: &lab_schematic
+          customization:
+              systemExtensions:
+                  officialExtensions:
+                      - siderolabs/iscsi-tools
+                      - siderolabs/util-linux-tools
+
+    - hostname: worker-1
+      ipAddress: 10.5.0.3
+      controlPlane: false
+      schematic: *lab_schematic
