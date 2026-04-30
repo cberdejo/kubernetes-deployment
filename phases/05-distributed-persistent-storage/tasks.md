@@ -1,32 +1,27 @@
-# Phase 05 - Distributed Persistent Storage with Longhorn
+# Phase 05 — Distributed Persistent Storage with Longhorn
 
-This guide explains how to install Longhorn using a Helm wrapper chart and how to update the `todo-app` chart so PostgreSQL uses Longhorn as its storage backend.
+This phase adds real persistent storage to the todo-app. You will create a Longhorn wrapper chart, update the Sealed Secrets controller to its own namespace, and wire PostgreSQL to a Longhorn-backed PVC so data survives Pod restarts and node rescheduling.
 
-**Conventions used in this guide:**
+**What you build in this phase:**
 
+| Artifact | Purpose |
+|---|---|
+| `apps/longhorn/` | Helm wrapper chart that installs the Longhorn CSI driver |
+| `apps/sealed-secrets/` | Updated wrapper — controller moves to `sealed-secrets` namespace |
+| Updated `apps/todo-app/` | Adds a PVC template and mounts it in the PostgreSQL deployment |
 
-| Key                   | Value              |
-| --------------------- | ------------------ |
-| Longhorn chart name   | `cluster-longhorn` |
-| Longhorn namespace    | `longhorn-system`  |
-| App chart name        | `todo-app`         |
-| App release name      | `my-app`           |
-| App namespace         | `todo`             |
-| Longhorn StorageClass | `longhorn`         |
-
+Compare your work with `solution/` when you are done.
 
 ---
 
 ## How it works
 
 ```
-Helm installs the Longhorn chart as a dependency
-     ↓
 Longhorn DaemonSet runs on each node and registers the CSI driver
      ↓
 A StorageClass named "longhorn" is available cluster-wide
      ↓
-todo-app's postgres-pvc requests storage from the "longhorn" StorageClass
+postgres-pvc.yaml requests a 1 Gi volume from the "longhorn" StorageClass
      ↓
 Longhorn provisions a replicated block volume and binds the PVC
      ↓
@@ -39,139 +34,313 @@ The key idea: **PostgreSQL is decoupled from the node where it runs**. The volum
 
 ---
 
-## Step 0 - Cluster requirements
+## Step 0 — Choose your cluster
 
-This phase requires a real multi-node cluster. Lightweight local solutions (single-node clusters, container-based nodes) will not work because Longhorn V1 requires `iscsiadm` to be present and executable on every storage node.
+From this phase onwards, **Minikube is no longer enough**. Longhorn's V1 data engine requires `iscsiadm` on every node — a kernel-level iSCSI tool that Minikube does not expose. You need a real cluster where you control the nodes.
 
-**Minimum: 3 nodes** — 1 control plane + 2 workers. Three nodes allow Longhorn to schedule replicas across failure domains, which is the whole point of distributed storage.
+Pick one option below, follow its setup guide, and come back once `kubectl get nodes` shows all nodes as `Ready`.
 
-**Node requirement:** `iscsiadm` must be available on each node that will store data:
+| Option | Setup guide | Best for |
+|--------|-------------|----------|
+| **k3s on Linux** | [docs/cluster-setup/k3s.md](../../docs/cluster-setup/k3s.md) | Fastest — runs on your existing Linux machine |
+| **Talos Linux on VM/bare metal** | [docs/cluster-setup/talos-vm.md](../../docs/cluster-setup/talos-vm.md) | Production-like, fully declarative |
+| **Managed cloud** (EKS, GKE, AKS, DigitalOcean) | Provider docs | Existing cloud cluster — ensure `open-iscsi` on workers |
+| **Any CNCF-certified cluster** | — | `sudo apt install open-iscsi` on each node |
 
-```bash
-# Run on each node — must return a version, not "command not found"
-iscsiadm --version
-```
-
-How you provision the cluster (bare metal, VMs, cloud instances) is up to you. The only hard requirement is that `iscsiadm` is present on the nodes before installing Longhorn.
+**Minimum per node:** 2 CPU, 4 GB RAM, 20 GB free disk.
 
 ---
 
-## Step 1 - Prerequisites
-
-Verify your tools and cluster before you begin.
+## Step 1 — Prerequisites
 
 ```bash
-# 3 nodes should be Ready (1 control plane + 2 workers)
+# All nodes should be Ready
 kubectl get nodes -o wide
 
 # Helm is available
 helm version --short
 
 # iscsiadm must be present on every storage node
-# SSH or exec into each node and run:
-iscsiadm --version
-# Expected output: iscsiadm version X.X.X
+iscsiadm --version                                    # k3s / standard Linux
+talosctl -n <NODE_IP> ls /usr/sbin/iscsiadm           # Talos
 ```
 
-Longhorn's default V1 data engine calls `iscsiadm` directly on the host to manage iSCSI connections. If the binary is missing, `longhorn-manager` will crash on startup with:
-
-```
-failed to execute iscsiadm: No such file or directory
-```
-
-How `iscsiadm` gets onto a node depends on the OS. On Debian/Ubuntu nodes it comes from the `open-iscsi` package. On immutable OS distributions it must be included in the node image before boot — it cannot be installed at runtime.
-
-If `longhorn-manager` is already in `CrashLoopBackOff`, fix the node prerequisite first, then restart the pods:
+If `longhorn-manager` crashes with `failed to execute iscsiadm: No such file or directory`, the binary is missing on the node. Fix the node first, then restart the pods:
 
 ```bash
-kubectl delete pod -n longhorn-system -l app=longhorn-manager
-kubectl rollout status daemonset/longhorn-manager -n longhorn-system
+kubectl delete pod -n longhorn -l app=longhorn-manager
+kubectl rollout status daemonset/longhorn-manager -n longhorn
 ```
 
 ---
 
-## Step 2 - Install the Longhorn controller
+## Step 2 — Create the Longhorn wrapper chart
 
-The `longhorn/` wrapper chart declares Longhorn as a Helm dependency, pins the version, and makes installs reproducible.
+Create the following directory structure. Each file is shown with its full content below.
 
 ```
-longhorn/
-├── Chart.yaml    ← declares longhorn as a dependency (version 1.11.0)
-├── values.yaml   ← default configuration for a local cluster
+apps/longhorn/
+├── Chart.yaml
+├── values/
+│   └── prod-values.yaml
 └── templates/
-    ├── namespace.yaml  ← creates longhorn-system with required PSA labels
-    └── route.yaml      ← HTTPRoute for Longhorn UI (requires Phase 06)
+    ├── namespace.yaml
+    └── route.yaml
 ```
+
+**`apps/longhorn/Chart.yaml`**
+
+```yaml
+apiVersion: v2
+name: cluster-longhorn
+type: application
+version: 1.0.0
+dependencies:
+  - name: longhorn
+    version: 1.11.0
+    repository: https://charts.longhorn.io
+```
+
+**`apps/longhorn/values/prod-values.yaml`**
+
+```yaml
+longhorn:
+  persistence:
+    defaultClassReplicaCount: 1
+  defaultSettings:
+    defaultReplicaCount: '{"v1":"1","v2":"1"}'
+  preUpgradeChecker:
+    jobEnabled: false
+
+# Enable in Phase 06 once Envoy Gateway is installed.
+gatewayRoute:
+  enabled: false
+  gateway:
+    name: public-gateway
+    namespace: envoy-gateway
+  hostname: "longhorn.talos.local"
+  pathPrefix: /
+```
+
+**`apps/longhorn/templates/namespace.yaml`**
+
+Longhorn DaemonSet pods need `privileged` access to mount block devices. Pod Security Admission (PSA) labels on the namespace allow this — without them Kubernetes blocks pod startup.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: longhorn
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/warn-version: latest
+```
+
+**`apps/longhorn/templates/route.yaml`**
+
+This template is disabled for now — it wires the Longhorn UI into Envoy Gateway, which you install in Phase 06.
+
+```yaml
+{{- if .Values.gatewayRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: longhorn-ui
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.gatewayRoute.gateway.name }}
+      namespace: {{ .Values.gatewayRoute.gateway.namespace }}
+  rules:
+    - backendRefs:
+        - kind: Service
+          name: longhorn-frontend
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gatewayRoute.pathPrefix }}
+{{- end }}
+```
+
+**Install Longhorn:**
 
 ```bash
-# Add Longhorn Helm repository
 helm repo add longhorn https://charts.longhorn.io
 helm repo update
 
-# Download dependency into charts/
-helm dependency update ./longhorn
+helm dependency update ./apps/longhorn
 
-# Install Longhorn in its own namespace
-helm upgrade --install cluster-longhorn ./longhorn \
-  -n longhorn-system \
+helm upgrade --install cluster-longhorn ./apps/longhorn \
+  -f ./apps/longhorn/values/prod-values.yaml \
+  -n longhorn \
   --create-namespace
 
-# Wait until all Longhorn pods are Running
-kubectl rollout status daemonset/longhorn-manager -n longhorn-system
-kubectl get pods -n longhorn-system
-
-# Confirm StorageClass is available
+kubectl rollout status daemonset/longhorn-manager -n longhorn
 kubectl get storageclass | grep longhorn
-# Expected: longhorn (default)
+# Expected: longhorn   (default)
 ```
 
-Your cluster might already have another default StorageClass. Because this phase explicitly sets `storageClassName: longhorn` in the PostgreSQL PVC, that is not fatal. If you want Longhorn to be the only default class, identify the existing default and patch it:
+> **Why a wrapper chart?** It pins the Longhorn version in Git, lets you track upgrades via pull requests, and makes the install reproducible across clusters.
+
+If your cluster already has a different default StorageClass, remove its default annotation so Longhorn is the sole default:
 
 ```bash
-kubectl get storageclass
-kubectl patch storageclass <existing-default-class> \
+kubectl patch storageclass <existing-default> \
   -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
 ```
 
-> **Why use a wrapper chart?** Same reason as in Phase 04 for Sealed Secrets: version pinning in Git, pull request-driven updates, and reproducible installs across environments.
+---
 
-> **Why PSA labels on the namespace?** Longhorn DaemonSet pods need `privileged` access to mount block devices. Pod Security Admission labels on `longhorn-system` allow this. Without them, Kubernetes would block pod startup.
+## Step 3 & 4 — Install Sealed Secrets and seal the PostgreSQL credentials
+
+Follow **[phases/04-secure-secrets-managment/tasks.md](../04-secure-secrets-managment/tasks.md)** for the full process.
+
+Two differences apply in Phase 05:
+
+| | Phase 04 | Phase 05 |
+|---|---|---|
+| Controller namespace | `kube-system` | `sealed-secrets` |
+| Helm release name | `sealed-secrets` | `sealed-secrets-prod` |
+
+Create the wrapper chart `apps/sealed-secrets/` with the files below, then install it.
+
+**`apps/sealed-secrets/Chart.yaml`**
+
+```yaml
+apiVersion: v2
+name: cluster-sealed-secrets
+description: Installs the Bitnami Sealed Secrets controller
+type: application
+version: 1.0.0
+dependencies:
+  - name: sealed-secrets
+    version: 2.18.3
+    repository: https://bitnami-labs.github.io/sealed-secrets
+```
+
+**`apps/sealed-secrets/values/prod-values.yaml`**
+
+```yaml
+sealed-secrets:
+  # fullnameOverride keeps the controller name stable across release name changes.
+  # kubeseal uses this name via --controller-name.
+  fullnameOverride: sealed-secrets
+```
+
+**Install the controller:**
+
+```bash
+helm dependency update ./apps/sealed-secrets
+
+helm upgrade --install sealed-secrets-prod ./apps/sealed-secrets \
+  -f ./apps/sealed-secrets/values/prod-values.yaml \
+  -n sealed-secrets \
+  --create-namespace
+
+kubectl get pods -n sealed-secrets
+```
+
+**Seal credentials:**
+
+When you reach the `kubeseal` commands in Phase 04, add `--controller-namespace sealed-secrets` to every call:
+
+```bash
+kubeseal --fetch-cert \
+  --controller-name sealed-secrets \
+  --controller-namespace sealed-secrets \
+  > /tmp/sealed-secrets-cert.pem
+```
+
+Paste the four encrypted blobs into `apps/todo-app/templates/database/postgres-sealedsecret.yaml` (created in the next step).
 
 ---
 
-## Step 3 - Update todo-app to use Longhorn storage
+## Step 5 — Update the todo-app chart for persistent storage
 
-The only required change is the StorageClass name in `values.yaml`. The PVC template already reads this value dynamically:
+Starting from your Phase 04 `todo-app` chart, make the following changes.
+
+### 5a — Add the PVC template
+
+Create `apps/todo-app/templates/database/postgres-pvc.yaml`:
 
 ```yaml
-# values.yaml - before
-postgres:
-  persistence:
-    storageClassName: <previous-storage-class>   # old local or previous default class
-
-# values.yaml - after
-postgres:
-  persistence:
-    storageClassName: longhorn   # Distributed Longhorn storage
+{{- if .Values.postgres.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "todo-app.fullname" . }}-postgres-pvc
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  storageClassName: {{ .Values.postgres.persistence.storageClassName }}
+  accessModes:
+    {{- toYaml .Values.postgres.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size }}
+{{- end }}
 ```
 
-`postgres-deployment.yaml` also uses `subPath: pgdata` in the volume mount. This is required because Longhorn formats the volume root with a filesystem that can include a `lost+found` directory, which causes PostgreSQL initialization to fail. `subPath` makes PostgreSQL write to a clean subdirectory.
+### 5b — Mount the PVC in the PostgreSQL deployment
+
+In `apps/todo-app/templates/database/postgres-deployment.yaml`, add the `volumeMounts` and `volumes` blocks inside the container spec (guarded by the `persistence.enabled` flag):
 
 ```yaml
-# postgres-deployment.yaml
-volumeMounts:
-  - name: postgres-pvc
-    mountPath: /var/lib/postgresql/data
-    subPath: pgdata
+      containers:
+        - name: postgres
+          ...
+          {{- if .Values.postgres.persistence.enabled }}
+          volumeMounts:
+            - name: postgres-pvc
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          {{- end }}
+      {{- if .Values.postgres.persistence.enabled }}
+      volumes:
+        - name: postgres-pvc
+          persistentVolumeClaim:
+            claimName: {{ include "todo-app.fullname" . }}-postgres-pvc
+      {{- end }}
+```
+
+> **Why `subPath: pgdata`?** PostgreSQL requires an empty directory at mount time. Without `subPath`, the PVC root becomes the data directory and PostgreSQL refuses to initialise.
+
+Also add `strategy: type: Recreate` to the Deployment spec — this prevents a second PostgreSQL Pod from starting while the first is still holding the PVC, which would cause a mount conflict:
+
+```yaml
+spec:
+  replicas: {{ .Values.postgres.replicaCount }}
+  strategy:
+    type: Recreate
+```
+
+### 5c — Add persistence values
+
+In `apps/todo-app/values/prod-values.yaml`, add the persistence block under `postgres`:
+
+```yaml
+postgres:
+  ...
+  secretName: "todo-db-secret"
+  existingSecret: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: longhorn
 ```
 
 ---
 
-## Step 4 - Publish app images to Docker Hub
-
-Until the private registry phase is implemented, use Docker Hub as the external image registry. This replaces the old local-cluster flow where images were built locally and loaded into Minikube.
-
-From the repository root:
+## Step 6 — Publish app images to Docker Hub
 
 ```bash
 export DOCKERHUB_USER="<your-dockerhub-user>"
@@ -182,74 +351,51 @@ docker login
 docker build \
   -t docker.io/${DOCKERHUB_USER}/todo-backend:${IMAGE_TAG} \
   ./application/backend
-
 docker push docker.io/${DOCKERHUB_USER}/todo-backend:${IMAGE_TAG}
 
 docker build \
   --build-arg VITE_API_URL=/api/v1 \
   -t docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG} \
   ./application/frontend
-
 docker push docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG}
 ```
 
-Then update the answer chart values so Kubernetes pulls the images from Docker Hub instead of expecting local node images:
-
-```yaml
-# answer/todo-app/values.yaml
-frontend:
-  image:
-    repository: "docker.io/<your-dockerhub-user>/todo-frontend"
-    tag: "1.0.0"
-  imagePullPolicy: IfNotPresent
-
-backend:
-  image:
-    repository: "docker.io/<your-dockerhub-user>/todo-backend"
-    tag: "1.0.0"
-  imagePullPolicy: IfNotPresent
-```
-
-The Deployment templates do not need hardcoded image changes. They already read the image repository and tag from `values.yaml`:
-
-```yaml
-image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
-```
+Update `repository` values in `apps/todo-app/values/prod-values.yaml` with your Docker Hub username before deploying.
 
 ---
 
-## Step 5 - Deploy the updated todo-app
+## Step 7 — Deploy the todo-app
 
 ```bash
-helm upgrade --install my-app ./todo-app \
+helm upgrade --install my-app ./apps/todo-app \
+  -f ./apps/todo-app/values/prod-values.yaml \
   -n todo \
-  --create-namespace \
-  -f ./todo-app/values.yaml
+  --create-namespace
 ```
 
 ---
 
-## Step 6 - Verify
+## Step 8 — Verify
 
 ```bash
 # PVC should be Bound to a Longhorn volume
 kubectl get pvc -n todo
 # Expected: my-app-todo-app-postgres-pvc   Bound   ...   longhorn
 
-# Verify Longhorn volume was created
-kubectl get volumes.longhorn.io -n longhorn-system
+# Longhorn created a volume object
+kubectl get volumes.longhorn.io -n longhorn
 
-# All pods should be Running
+# All pods running
 kubectl get pods -n todo
 
-# Inspect backend logs for DB connection errors
+# No DB connection errors in backend logs
 kubectl logs deploy/my-app-todo-app-backend -n todo --tail=100
 ```
 
-To access the Longhorn UI before Phase 06 (Envoy Gateway), use port-forward:
+Access the Longhorn UI before Phase 06 via port-forward:
 
 ```bash
-kubectl port-forward svc/longhorn-frontend 8080:80 -n longhorn-system
+kubectl port-forward svc/longhorn-frontend 8080:80 -n longhorn
 # Open http://localhost:8080
 ```
 
@@ -257,50 +403,51 @@ kubectl port-forward svc/longhorn-frontend 8080:80 -n longhorn-system
 
 ## Troubleshooting checklist
 
-- `iscsiadm --version` succeeds on every storage node before installing Longhorn
-- `longhorn-manager` in `CrashLoopBackOff` with `failed to execute iscsiadm: No such file or directory` means the binary is missing from the node — fix the node, then delete the manager pods to let them restart
-- Longhorn pods in `longhorn-system` are all Running (`kubectl get pods -n longhorn-system`)
-- `longhorn` StorageClass exists (`kubectl get storageclass`)
-- PVC is `Bound`; if it is `Pending`, inspect it: `kubectl describe pvc -n todo`
-- `subPath: pgdata` is present in `postgres-deployment.yaml`; without it PostgreSQL init fails
-- No stale PVCs from a previous install; delete and redeploy if you switched StorageClass
+- `iscsiadm --version` (Linux) or `talosctl -n <ip> ls /usr/sbin/iscsiadm` (Talos) succeeds on every storage node before installing Longhorn
+- `longhorn-manager` in `CrashLoopBackOff` with `failed to execute iscsiadm` — on Linux: `sudo apt install open-iscsi && sudo systemctl enable --now iscsid`; on Talos: re-create node with the correct ISO from factory.talos.dev
+- `longhorn` StorageClass exists: `kubectl get storageclass`
+- PVC is `Bound`; if `Pending`: `kubectl describe pvc -n todo`
+- `subPath: pgdata` is present in the postgres Deployment
+- `postgres-sealedsecret.yaml` has real encrypted blobs, not `cipher value` placeholders
+- Sealed Secrets controller is Running in `sealed-secrets` namespace before sealing
+- SealedSecret was sealed against this cluster — blobs from another cluster will not decrypt
 
 ---
 
 ## Credential rotation
 
-Longhorn is stateless from the application's perspective. Rotating DB credentials follows the same process as Phase 04 (re-seal with `kubeseal` and redeploy). The Longhorn volume persists through credential rotations.
+Rotating DB credentials follows the same process as Phase 04 (re-seal with `kubeseal` and redeploy). The Longhorn volume persists through credential rotations.
 
 ---
 
 ## Additional exercises
 
-These are optional, but they help you truly understand Longhorn behavior.
-
-1. **Replica verification** - after deployment, open Longhorn UI, locate the PostgreSQL volume, and confirm replicas exist on each node. Compare "healthy" vs "degraded" states.
-2. **Pod eviction test** - delete the PostgreSQL Pod. Observe Kubernetes rescheduling. Confirm PVC reattaches and data is intact (todos created before deletion still exist).
-3. **Reclaim policy test** - set StorageClass `reclaimPolicy` to `Retain`, delete the PVC, and observe the Longhorn volume remains. Then delete it manually.
-4. **Snapshot** - create a PostgreSQL volume snapshot in Longhorn UI. Insert test data. Delete the data. Restore from snapshot and confirm data returns.
-5. **Single vs multiple replicas** - change `longhorn.persistence.defaultClassReplicaCount` in `values.yaml` and observe volume health in UI. Use `1` for a single-node lab; use `3` when you have at least three storage nodes.
-6. **Node drain** - drain a node (`kubectl drain <node> --ignore-daemonsets`). Observe Longhorn rebuilding replicas on remaining nodes. Uncordon and observe rebalancing.
+1. **Replica verification** — open Longhorn UI, find the PostgreSQL volume, confirm replicas. Compare "healthy" vs "degraded" states.
+2. **Pod eviction test** — delete the PostgreSQL Pod. Confirm Kubernetes reschedules it and the PVC reattaches with data intact.
+3. **Reclaim policy test** — set StorageClass `reclaimPolicy: Retain`, delete the PVC, observe the Longhorn volume remains. Then delete it manually.
+4. **Snapshot** — create a volume snapshot in Longhorn UI. Insert test data. Delete the data. Restore from snapshot and confirm data returns.
+5. **Single vs multiple replicas** — change `defaultClassReplicaCount` in `prod-values.yaml` and observe volume health in the UI.
+6. **Node drain** — drain a node (`kubectl drain <node> --ignore-daemonsets`). Observe Longhorn rebuilding replicas on remaining nodes. Uncordon and observe rebalancing.
 
 ---
 
 ## Further reading
 
-- [Longhorn documentation](https://longhorn.io/docs/latest/) - official docs covering all features
-- [CSI specification](https://github.com/container-storage-interface/spec) - the interface Longhorn implements
-- [Kubernetes storage documentation](https://kubernetes.io/docs/concepts/storage/) - deep dive into PV, PVC, and StorageClass
+- [Longhorn documentation](https://longhorn.io/docs/latest/)
+- [CSI specification](https://github.com/container-storage-interface/spec)
+- [Kubernetes storage documentation](https://kubernetes.io/docs/concepts/storage/)
 
 ---
 
 ## Success criteria
 
-- Longhorn controller installed with a Helm wrapper chart and all pods Running
-- `longhorn` StorageClass available in the cluster
-- `todo-app` `values.yaml` uses `storageClassName: longhorn`
-- PostgreSQL deployment uses `subPath: pgdata` in volume mount
+
+- `apps/longhorn/` wrapper chart installed, all Longhorn pods Running
+- `longhorn` StorageClass is the default
+- `apps/sealed-secrets/` installed in the `sealed-secrets` namespace
+- `postgres-sealedsecret.yaml` contains real encrypted blobs
+- `postgres-pvc.yaml` template exists and references `storageClassName: longhorn`
+- PostgreSQL Deployment uses `strategy: Recreate` and mounts the PVC with `subPath: pgdata`
 - PVC is `Bound` and backed by a Longhorn volume
-- End-to-end deployment works: todos can be created and survive Pod restart
-- Longhorn UI is reachable and volume shows healthy replicas
-- Additional exercises completed and findings documented
+- Todos created before a Pod restart survive the restart
+- Longhorn UI reachable and volume shows healthy replicas
