@@ -1,8 +1,12 @@
 node_modules
 
+# Helm - Ignore downloaded dependencies globally
+*.tgz
+*.tar.gz
+
 # Env files
 .env
 *.env
 
-# Helm dependencies (regenrate with helm dependency update) 
+# Helm dependencies (regenrate with helm dependency update)
 charts/
