@@ -1,5 +1,20 @@
 # Kubernetes Learning Phases
 
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
+![Argo CD](https://img.shields.io/badge/Argo%20CD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)
+![GitOps](https://img.shields.io/badge/GitOps-222222?style=for-the-badge&logo=git&logoColor=white)
+![Harbor](https://img.shields.io/badge/Harbor-60B932?style=for-the-badge&logo=harbor&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
+![Sealed Secrets](https://img.shields.io/badge/Sealed%20Secrets-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![Envoy Gateway](https://img.shields.io/badge/Envoy%20Gateway-AC6199?style=for-the-badge&logo=envoyproxy&logoColor=white)
+![Longhorn](https://img.shields.io/badge/Longhorn-5E9CA0?style=for-the-badge&logo=rancher&logoColor=white)
+![Minikube](https://img.shields.io/badge/Minikube-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![Talos Linux](https://img.shields.io/badge/Talos%20Linux-FF6F00?style=for-the-badge&logo=linux&logoColor=white)
+![k3s](https://img.shields.io/badge/k3s-FFC61C?style=for-the-badge&logo=k3s&logoColor=black)
+
 This section of the repository gathers my hands-on Kubernetes learning path in a practical, progressive way. The goal is to make each phase useful both for my own review and for anyone who wants to learn by following real examples.
 
 This project is focused on real-world application architecture and operations, covering the following key technologies and tools. This architecture is one of many possible approaches, and I chose this stack based on my hands-on experience working with these technologies:
@@ -43,7 +58,7 @@ For the next stages, it is better to move to more realistic alternatives such as
 - **k3s** on VMs or lightweight servers, if you want a simpler but realistic multi-node cluster that is easier to bootstrap and maintain.
 - **Managed Kubernetes** such as **EKS**, **GKE**, or **AKS**, if you want to practice with cloud-native workflows and understand how Kubernetes is typically consumed in real companies.
 
-## Interesting Lecture
+## Interesting Lectures
 [Kubernetes docs](https://kubernetes.io/docs/home/)
 
 [Kubernetes Deployment Antipatterns – part 1](https://codefresh.io/blog/kubernetes-antipatterns-1/)
@@ -61,3 +76,6 @@ For the next stages, it is better to move to more realistic alternatives such as
 [What is Longhorn](https://longhorn.io/docs/latest/what-is-longhorn/)
 
 [Kubernetes Persistent Volumes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
+
+## Special Thanks
+Special Thanks to [jozayas](https://github.com/jozayas) who helped me to understand some core concepts and sent me some cool documentation and info.
