@@ -4,15 +4,9 @@
 
 **Goal:** Have a working local Kubernetes cluster.
 
-### Steps
+See **[docs/cluster-setup/minikube.md](../../docs/cluster-setup/minikube.md)** for installation and start instructions.
 
-1. Start minikube:
-
-```bash
-minikube start
-```
-
-2. Verify the cluster is running:
+Once Minikube is running, verify before proceeding:
 
 ```bash
 minikube status
