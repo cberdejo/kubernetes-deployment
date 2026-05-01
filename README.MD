@@ -11,9 +11,6 @@
 ![Sealed Secrets](https://img.shields.io/badge/Sealed%20Secrets-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Envoy Gateway](https://img.shields.io/badge/Envoy%20Gateway-AC6199?style=for-the-badge&logo=envoyproxy&logoColor=white)
 ![Longhorn](https://img.shields.io/badge/Longhorn-5E9CA0?style=for-the-badge&logo=rancher&logoColor=white)
-![Minikube](https://img.shields.io/badge/Minikube-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![Talos Linux](https://img.shields.io/badge/Talos%20Linux-FF6F00?style=for-the-badge&logo=linux&logoColor=white)
-![k3s](https://img.shields.io/badge/k3s-FFC61C?style=for-the-badge&logo=k3s&logoColor=black)
 
 This section of the repository gathers my hands-on Kubernetes learning path in a practical, progressive way. The goal is to make each phase useful both for my own review and for anyone who wants to learn by following real examples.
 
