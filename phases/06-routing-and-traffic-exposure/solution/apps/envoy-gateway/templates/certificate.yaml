@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gateway-tls
+  namespace: envoy-gateway
+spec:
+  secretName: gateway-tls-secret
+  issuerRef:
+    name: homelab-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - todo.local
+    - longhorn.local

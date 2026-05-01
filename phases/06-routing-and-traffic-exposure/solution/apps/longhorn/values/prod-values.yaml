@@ -1,0 +1,16 @@
+longhorn:
+  persistence:
+    defaultClassReplicaCount: 1
+  defaultSettings:
+    defaultReplicaCount: '{"v1":"1","v2":"1"}'
+  preUpgradeChecker:
+    jobEnabled: false
+gatewayRoute:
+  enabled: true
+  hostname: "longhorn.local"
+  gateway:
+    name: public-gateway
+    namespace: envoy-gateway
+  pathPrefix: /
+  # Internal service name from the Longhorn 1.x upstream chart. Override if the upstream renames it.
+  backendService: longhorn-frontend

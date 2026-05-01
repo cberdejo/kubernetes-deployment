@@ -1,0 +1,6 @@
+dockerhub_user    = "your-dockerhub-username"
+image_tag         = "1.0.0"
+postgres_user     = "admin"
+postgres_password = "REPLACE_ME"  # required — set a real password before running tofu apply
+postgres_db       = "domain"
+release_name      = "my-app"

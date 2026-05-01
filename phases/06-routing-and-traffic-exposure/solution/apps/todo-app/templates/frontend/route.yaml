@@ -1,0 +1,24 @@
+{{- if .Values.frontend.gatewayRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "todo-app.fullname" . }}-frontend
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.frontend.gatewayRoute.gateway.name }}
+      namespace: {{ .Values.frontend.gatewayRoute.gateway.namespace }}
+  rules:
+    - backendRefs:
+        - kind: Service
+          name: {{ include "todo-app.fullname" . }}-frontend
+          port: {{ .Values.frontend.service.port }}
+      matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.frontend.gatewayRoute.pathPrefix }}
+{{- end }}
