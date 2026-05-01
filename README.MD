@@ -33,6 +33,7 @@ The project is still a work in progress, and new phases will be added over time.
 
 -  [Roadmap](docs/roadmap.md) - full long-term learning plan and upcoming stages.
 -  [Glossary](docs/glossary.md) - key concepts and terminology used across the phases.
+-  [Deployment and Architecture](docs/deployment-and-architecture.md) - deployment strategy, architecture progression, and final platform layout.
 
 ## Implemented Phases
 
@@ -44,6 +45,7 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 03](/phases/03-package-managment/)    | Move from static YAML manifests to Helm charts. Learn templating, `values.yaml`, releases, and reusable package-based Kubernetes deployments.           |
 | [Phase 04](/phases/04-secure-secrets-managment/)| Secure application secrets with Sealed Secrets. Learn encryption workflow, Helm integration, and GitOps-friendly secret handling in Kubernetes.       |
 | [Phase 05](/phases/05-distributed-persistent-storage/)| Replace local storage with Longhorn distributed block storage. Learn PV/PVC/StorageClass, CSI drivers, volume replication, and data persistence across node restarts and rescheduling. |
+| [Phase 06](/phases/06-routing-and-traffic-exposure/)| Expose services through managed HTTPS routing. Learn Envoy Gateway, Gateway API, cert-manager, MetalLB, domain-based routing, TLS automation, and Terraform basics. |
 
 ## Recommended Lab Environment
 
