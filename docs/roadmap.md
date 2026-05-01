@@ -152,6 +152,7 @@ Use persistent volumes backed by distributed storage for Kubernetes workloads.
 - Centralize and secure external traffic management
 - Replace manual `NodePort` exposure with domain-based routing policies
 - Terminate TLS automatically with signed certificates
+- Introduce Terraform
 
 **Technologies**
 
