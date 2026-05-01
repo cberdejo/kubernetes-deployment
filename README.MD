@@ -33,7 +33,7 @@ The project is still a work in progress, and new phases will be added over time.
 
 -  [Roadmap](docs/roadmap.md) - full long-term learning plan and upcoming stages.
 -  [Glossary](docs/glossary.md) - key concepts and terminology used across the phases.
--  [Deployment and Architecture](docs/deployment-and-architecture.md) - deployment strategy, architecture progression, and final platform layout.
+
 
 ## Implemented Phases
 
