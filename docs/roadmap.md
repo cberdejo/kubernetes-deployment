@@ -10,9 +10,9 @@ Deploy and operate real-world applications using:
 - Helm
 - Argo CD (GitOps)
 - Harbor (private container registry)
-- Prometheus + Grafana (observability)
+- Prometheus + Grafana + Loki + Alloy (observability)
 - Sealed Secrets (secure secret management)
-- Envoy Gateway / Ingress
+- Envoy Gateway + cert-manager (routing and TLS)
 - authentik (identity provider and SSO)
 
 By the end of the roadmap, the platform should be structured and operated with production-ready practices.
@@ -145,21 +145,24 @@ Use persistent volumes backed by distributed storage for Kubernetes workloads.
 
 ---
 
-### Phase 06 - Routing and Traffic Exposure 
+### Phase 06 - Routing and Traffic Exposure
 
 **Objective**
 
 - Centralize and secure external traffic management
 - Replace manual `NodePort` exposure with domain-based routing policies
+- Terminate TLS automatically with signed certificates
 
 **Technologies**
 
 - Envoy Gateway
 - Kubernetes Gateway API
+- cert-manager (automatic TLS via Let's Encrypt or self-signed CA)
+- MetalLB (bare metal / on-prem clusters only — provides `LoadBalancer` IPs without a cloud provider)
 
 **Expected Outcome**
 
-Expose services through managed HTTP routing with clearer, safer ingress control.
+Expose services through managed HTTPS routing with automatic certificate provisioning. On bare metal clusters, MetalLB replaces the cloud load balancer so `LoadBalancer` services get real IPs.
 
 ---
 
@@ -225,14 +228,16 @@ Automatically synchronize cluster configuration from version-controlled manifest
 **Objective**
 
 - Gain visibility into health, performance, and resource usage
+- Collect and query both metrics and logs from a single platform
 - Integrate monitoring as part of the GitOps workflow
 
 **Technologies**
 
-- Prometheus
-- Grafana
-- `kube-prometheus-stack`
+- `kube-prometheus-stack` (Prometheus + Grafana + Alertmanager)
+- Loki (log aggregation)
+- Grafana Alloy (unified collector — ships logs to Loki and metrics to Prometheus)
+- metrics-server (prerequisite — enables `kubectl top` and Horizontal Pod Autoscaler)
 
 **Expected Outcome**
 
-Operate the platform with metrics, dashboards, and alerting-ready foundations.
+Operate the platform with metrics, logs, dashboards, and alerting. Query application logs and cluster metrics from a single Grafana instance. Understand the full observability stack: collect → store → query → alert.
