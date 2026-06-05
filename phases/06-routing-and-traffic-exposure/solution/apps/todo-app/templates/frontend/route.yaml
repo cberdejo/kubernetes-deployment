@@ -12,6 +12,10 @@ spec:
       kind: Gateway
       name: {{ .Values.frontend.gatewayRoute.gateway.name }}
       namespace: {{ .Values.frontend.gatewayRoute.gateway.namespace }}
+  {{- if .Values.frontend.gatewayRoute.hostname }}
+  hostnames:
+    - {{ .Values.frontend.gatewayRoute.hostname | quote }}
+  {{- end }}
   rules:
     - backendRefs:
         - kind: Service

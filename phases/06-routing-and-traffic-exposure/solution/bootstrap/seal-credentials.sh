@@ -1,52 +1,34 @@
 #!/usr/bin/env bash
 # Seals PostgreSQL credentials and patches the Helm template.
-# Reads values from bootstrap/terraform/terraform.tfvars.
-# Run after Sealed Secrets is deployed and before todo-app.
-#
-# Usage: ./seal-credentials.sh
+# Run this on first bootstrap and any time you rotate credentials.
+# Usage: ./seal-credentials.sh [--redeploy]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOLUTION="$(cd "$SCRIPT_DIR/.." && pwd)"
 SEALED_TEMPLATE="$SOLUTION/apps/todo-app/templates/database/postgres-sealedsecret.yaml"
-TFVARS="$SCRIPT_DIR/terraform/terraform.tfvars"
+ENV_FILE="$SCRIPT_DIR/.env"
+REDEPLOY=false
+[[ "${1:-}" == "--redeploy" ]] && REDEPLOY=true
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 info() { printf "${GREEN}[+]${NC} %s\n" "$*"; }
 warn() { printf "${YELLOW}[!]${NC} %s\n" "$*"; }
 err()  { printf "${RED}[✗]${NC} %s\n" "$*" >&2; exit 1; }
 
-# ── Dependency checks ─────────────────────────────────────────────
-command -v kubectl  >/dev/null 2>&1 || err "kubectl is required but not installed"
-command -v kubeseal >/dev/null 2>&1 || err "kubeseal is required but not installed"
-command -v python3  >/dev/null 2>&1 || err "python3 is required but not installed"
-
-# ── Read values from terraform.tfvars ────────────────────────────
-[[ -f "$TFVARS" ]] || err "terraform.tfvars not found at $TFVARS"
-
-tfvar() {
-  # Extracts: key = "value"  →  value
-  # NOTE: values containing literal double-quotes are not supported by this parser.
-  local raw
-  raw="$(grep -E "^${1}\s*=" "$TFVARS" | sed -E 's/^[^=]+=\s*"(.*)"\s*$/\1/')"
-  printf '%s' "$raw"
-}
-
-POSTGRES_USER="$(tfvar postgres_user)"
-POSTGRES_PASSWORD="$(tfvar postgres_password)"
-POSTGRES_DB="$(tfvar postgres_db)"
-RELEASE_NAME="$(tfvar release_name)"
+# ── Load credentials ──────────────────────────────────────────────
+[[ -f "$ENV_FILE" ]] || err ".env not found — copy .env.example to .env and fill in your values."
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+: "${POSTGRES_USER:?POSTGRES_USER not set in .env}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD not set in .env}"
+: "${POSTGRES_DB:?POSTGRES_DB not set in .env}"
 RELEASE_NAME="${RELEASE_NAME:-my-app}"
-
-[[ -n "$POSTGRES_USER" ]]     || err "postgres_user not found or empty in terraform.tfvars"
-[[ -n "$POSTGRES_PASSWORD" ]] || err "postgres_password not found or empty in terraform.tfvars"
-[[ -n "$POSTGRES_DB" ]]       || err "postgres_db not found or empty in terraform.tfvars"
 
 POSTGRES_HOST="${RELEASE_NAME}-todo-app-postgres"
 DATABASE_URI="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}"
 
 # ── Wait for controller ───────────────────────────────────────────
-# Controller deployment name is determined by fullnameOverride: sealed-secrets in values.
 info "Waiting for Sealed Secrets controller..."
 kubectl rollout status deploy/sealed-secrets -n sealed-secrets --timeout=90s
 
@@ -58,7 +40,6 @@ PATCHED_TEMPLATE="$(mktemp /tmp/postgres-sealedsecret.XXXXXX.yaml)"
 trap 'rm -f "$CERT_FILE" "$PLAIN_SECRET" "$SEALED_OUTPUT" "$PATCHED_TEMPLATE"' EXIT
 
 # ── Fetch controller certificate ──────────────────────────────────
-# Controller name matches fullnameOverride in sealed-secrets values.
 kubeseal --fetch-cert \
   --controller-name sealed-secrets \
   --controller-namespace sealed-secrets \
@@ -86,8 +67,6 @@ kubeseal \
 info "Credentials sealed"
 
 # ── Patch the Helm template ───────────────────────────────────────
-# Write to a temp file first; only replace the target if patching succeeds
-# and the result is valid YAML, preventing half-patched corrupt state.
 python3 - "$SEALED_OUTPUT" "$SEALED_TEMPLATE" "$PATCHED_TEMPLATE" <<'PYEOF'
 import sys, re, yaml
 
@@ -102,24 +81,38 @@ with open(template_file) as f:
     content = f.read()
 
 for key, value in encrypted.items():
-    content = re.sub(
+    content, count = re.subn(
         rf"^(    {re.escape(key)}:)\s+.+$",
         rf"\1 {value}",
         content,
         flags=re.MULTILINE,
     )
+    if count != 1:
+        raise SystemExit(f"expected exactly one template entry for {key}, found {count}")
     print(f"  patched: {key}")
-
-# Validate the patched output is parseable YAML before writing
-yaml.safe_load(content)
 
 with open(output_file, "w") as f:
     f.write(content)
 PYEOF
 
-# Atomically replace the template only after successful patch + YAML validation
 cp "$PATCHED_TEMPLATE" "$SEALED_TEMPLATE"
 
 info "Template patched: $SEALED_TEMPLATE"
 warn "These encrypted blobs are cluster-specific — they can only be decrypted by this controller."
 warn "They are safe to commit to Git."
+
+# ── Optionally redeploy ───────────────────────────────────────────
+if [[ "$REDEPLOY" == true ]]; then
+  : "${DOCKERHUB_USER:?DOCKERHUB_USER not set in .env}"
+  : "${IMAGE_TAG:?IMAGE_TAG not set in .env}"
+  info "Redeploying todo-app..."
+  helm upgrade --install "$RELEASE_NAME" "$SOLUTION/apps/todo-app" \
+    -f "$SOLUTION/apps/todo-app/values/prod-values.yaml" \
+    --set frontend.image.repository="docker.io/${DOCKERHUB_USER}/todo-frontend" \
+    --set frontend.image.tag="${IMAGE_TAG}" \
+    --set backend.image.repository="docker.io/${DOCKERHUB_USER}/todo-backend" \
+    --set backend.image.tag="${IMAGE_TAG}" \
+    -n todo \
+    --wait --timeout 3m
+  info "todo-app redeployed"
+fi

@@ -23,6 +23,7 @@ frontend:
     backendUpstream: ""
   gatewayRoute:
     enabled: true
+    hostname: "todo.local"
     gateway:
       name: public-gateway
       namespace: envoy-gateway
