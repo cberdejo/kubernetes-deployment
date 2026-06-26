@@ -1,12 +1,27 @@
 #!/usr/bin/env bash
-# Seals PostgreSQL credentials and patches the Helm template.
-# Run this on first bootstrap and any time you rotate credentials.
+# Seals PostgreSQL credentials into a standalone SealedSecret manifest and
+# applies it to the cluster. Run this on first bootstrap and any time you
+# rotate credentials.
+#
+# Unlike the rest of the secrets progression (Phase 05+ generates the Secret
+# in-cluster with the chart's bootstrap hook), Phase 04 deliberately teaches the
+# SealedSecret approach: the *encrypted* blob is committed to Git and the
+# controller decrypts it into the `todo-db-secret` Secret in-cluster. The
+# canonical chart consumes it via `postgres.existingSecret: todo-db-secret`
+# (set in apps/todo-app/values/prod-values.yaml), which disables the chart's
+# own bootstrap hook for this phase.
+#
 # Usage: ./seal-credentials.sh [--redeploy]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOLUTION="$(cd "$SCRIPT_DIR/.." && pwd)"
-SEALED_TEMPLATE="$SOLUTION/apps/todo-app/templates/database/postgres-sealedsecret.yaml"
+REPO_ROOT="$(cd "$SOLUTION/../../.." && pwd)"
+CHART_DIR="$REPO_ROOT/application/chart"
+CHART_VALUES="$SOLUTION/apps/todo-app/values/prod-values.yaml"
+# Committed, encrypted-at-rest SealedSecret manifest (safe to push to Git).
+SEALED_DIR="$SOLUTION/sealed"
+SEALED_MANIFEST="$SEALED_DIR/todo-db-sealedsecret.yaml"
 ENV_FILE="$SCRIPT_DIR/.env"
 REDEPLOY=false
 [[ "${1:-}" == "--redeploy" ]] && REDEPLOY=true
@@ -25,7 +40,7 @@ source "$ENV_FILE"
 : "${POSTGRES_DB:?POSTGRES_DB not set in .env}"
 RELEASE_NAME="${RELEASE_NAME:-my-app}"
 
-# Postgres service name matches Helm fullname convention: <release>-todo-app-postgres
+# Postgres service name matches the chart fullname convention: <release>-todo-app-postgres
 POSTGRES_HOST="${RELEASE_NAME}-todo-app-postgres"
 DATABASE_URI="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}"
 
@@ -36,8 +51,7 @@ kubectl rollout status deploy/sealed-secrets -n kube-system --timeout=90s
 # ── Temp files (auto-cleaned on exit) ─────────────────────────────
 CERT_FILE="$(mktemp /tmp/sealed-secrets-cert.XXXXXX.pem)"
 PLAIN_SECRET="$(mktemp /tmp/todo-db-secret.XXXXXX.yaml)"
-SEALED_OUTPUT="$(mktemp /tmp/todo-db-sealedsecret.XXXXXX.yaml)"
-trap 'rm -f "$CERT_FILE" "$PLAIN_SECRET" "$SEALED_OUTPUT"' EXIT
+trap 'rm -f "$CERT_FILE" "$PLAIN_SECRET"' EXIT
 
 # ── Fetch controller certificate ──────────────────────────────────
 kubeseal --fetch-cert \
@@ -46,7 +60,7 @@ kubeseal --fetch-cert \
   > "$CERT_FILE"
 info "Certificate fetched from controller"
 
-# ── Create and seal the secret ────────────────────────────────────
+# ── Build the plaintext Secret (never written to Git) ─────────────
 kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
 
 kubectl create secret generic todo-db-secret \
@@ -57,58 +71,38 @@ kubectl create secret generic todo-db-secret \
   --from-literal=DATABASE_URI="$DATABASE_URI" \
   --dry-run=client -o yaml > "$PLAIN_SECRET"
 
+# ── Seal into a standalone, committable manifest ──────────────────
+mkdir -p "$SEALED_DIR"
 kubeseal \
   --format yaml \
   --cert "$CERT_FILE" \
   --scope namespace-wide \
   < "$PLAIN_SECRET" \
-  > "$SEALED_OUTPUT"
+  > "$SEALED_MANIFEST"
 
-info "Credentials sealed"
+info "SealedSecret written: ${SEALED_MANIFEST#"$REPO_ROOT"/}"
+warn "The encrypted blob is cluster-specific and safe to commit to Git."
 
-# ── Patch the Helm template ───────────────────────────────────────
-# The template contains Helm syntax ({{ }}) so it is not valid YAML.
-# We use regex to replace each encryptedData value without touching the rest.
-python3 - "$SEALED_OUTPUT" "$SEALED_TEMPLATE" <<'PYEOF'
-import sys, re
-import yaml
-
-sealed_file, template_file = sys.argv[1], sys.argv[2]
-
-with open(sealed_file) as f:
-    sealed = yaml.safe_load(f)
-
-encrypted = sealed["spec"]["encryptedData"]
-
-with open(template_file) as f:
-    content = f.read()
-
-for key, value in encrypted.items():
-    # Match "    KEY: <anything>" at 4-space indent (inside the encryptedData block).
-    # Replaces both placeholder "cipher value" text and any previously sealed blobs.
-    content = re.sub(
-        rf"^(    {re.escape(key)}:)\s+.+$",
-        rf"\1 {value}",
-        content,
-        flags=re.MULTILINE,
-    )
-    print(f"  patched: {key}")
-
-with open(template_file, "w") as f:
-    f.write(content)
-PYEOF
-
-info "Template patched: $SEALED_TEMPLATE"
-warn "These encrypted blobs are cluster-specific — they can only be decrypted by this controller."
-warn "They are safe to commit to Git."
+# ── Apply it; the controller decrypts it into todo-db-secret ──────
+kubectl apply -f "$SEALED_MANIFEST"
+info "Applied — waiting for the controller to materialize todo-db-secret..."
+for _ in $(seq 1 30); do
+  if kubectl get secret todo-db-secret -n todo &>/dev/null; then
+    info "Secret todo-db-secret is ready in namespace todo"
+    break
+  fi
+  sleep 2
+done
+kubectl get secret todo-db-secret -n todo &>/dev/null \
+  || err "todo-db-secret was not created — check the controller logs in kube-system."
 
 # ── Optionally redeploy ───────────────────────────────────────────
 if [[ "$REDEPLOY" == true ]]; then
   : "${DOCKERHUB_USER:?DOCKERHUB_USER not set in .env}"
   : "${IMAGE_TAG:?IMAGE_TAG not set in .env}"
-  info "Redeploying todo-app..."
-  helm upgrade --install "$RELEASE_NAME" "$SOLUTION/apps/todo-app" \
-    -f "$SOLUTION/apps/todo-app/values.yaml" \
+  info "Redeploying todo-app from the canonical chart..."
+  helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+    -f "$CHART_VALUES" \
     --set frontend.image.repository="docker.io/${DOCKERHUB_USER}/todo-frontend" \
     --set frontend.image.tag="${IMAGE_TAG}" \
     --set backend.image.repository="docker.io/${DOCKERHUB_USER}/todo-backend" \

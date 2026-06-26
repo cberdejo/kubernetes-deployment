@@ -1,37 +1,51 @@
 # Phase 04 — Secure Secrets Management with Bitnami Sealed Secrets
 
-This guide walks through installing Bitnami Sealed Secrets, encrypting your database credentials with `kubeseal`, and wiring them into the `todo-app` Helm chart so everything is safe to commit to Git.
+This guide walks through installing Bitnami Sealed Secrets, encrypting your
+database credentials with `kubeseal`, and consuming them from the canonical
+`todo-app` chart so everything is safe to commit to Git.
+
+From this phase onwards the solution stops copying the chart and consumes the
+**single source of truth** at `application/chart`. The only Phase-04-specific
+artefacts are the sealed credentials and a small values override.
 
 **Conventions used in this guide:**
 
 
-| Key                      | Value            |
-| ------------------------ | ---------------- |
-| Chart name               | `todo-app`       |
-| Release name             | `my-app`         |
-| App namespace            | `todo`           |
-| Sealed Secrets namespace | `kube-system`    |
-| Secret name              | `todo-db-secret` |
+| Key                      | Value                          |
+| ------------------------ | ------------------------------ |
+| Canonical chart          | `application/chart`            |
+| Release name             | `my-app`                       |
+| App namespace            | `todo`                         |
+| Sealed Secrets namespace | `kube-system`                  |
+| Secret name              | `todo-db-secret`               |
+| Sealed manifest          | `solution/sealed/todo-db-sealedsecret.yaml` |
+| Phase values             | `solution/apps/todo-app/values/prod-values.yaml` |
 
+> Commands below are run from `phases/04-secure-secrets-managment/solution/`
+> unless noted. The canonical chart is therefore `../../../application/chart`.
 
 ---
 
 ## How it works
 
 ```
-kubeseal encrypts your credentials using the controller's public key
+kubeseal encrypts your credentials with the controller's public key
      ↓
-You paste the encrypted blobs directly into
-templates/database/postgres-sealedsecret.yaml and commit the file to Git
+The encrypted SealedSecret is written to a standalone manifest
+(solution/sealed/todo-db-sealedsecret.yaml) and committed to Git
      ↓
-helm upgrade renders and applies the SealedSecret to the cluster
+kubectl apply sends it to the cluster
      ↓
-Sealed Secrets controller decrypts it → creates a plain Kubernetes Secret
+Sealed Secrets controller decrypts it → creates the todo-db-secret Secret
      ↓
-Backend and Postgres pods consume that Secret via envFrom
+The canonical chart, deployed with postgres.existingSecret: todo-db-secret,
+consumes that Secret via envFrom (backend + postgres)
 ```
 
-The key idea: **encrypted blobs live in the Helm template, never in `values.yaml`**. The `values.yaml` stays free of credentials. The plain credentials never leave your machine.
+The key idea: **encrypted blobs live in a standalone, committable manifest —
+never in `values.yaml`, and never copied into the app chart.** The app chart
+(`application/chart`) stays the single source of truth and only references the
+Secret by name. The plain credentials never leave your machine.
 
 ---
 
@@ -67,21 +81,21 @@ The controller runs inside the cluster and holds the private key used to decrypt
 In production the controller itself is managed as code. The `sealed-secrets/` wrapper chart declares the dependency so the version is pinned and reproducible:
 
 ```
-sealed-secrets/
+apps/sealed-secrets/
 ├── Chart.yaml    ← declares bitnami-labs/sealed-secrets as a dependency
 └── values.yaml   ← fullnameOverride to keep the controller name stable
 ```
 
 ```bash
-# Add the Bitnami Labs Helm repo (different from bitnami/bitnami)
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+# Add the Sealed Secrets Helm repo (bitnami-labs org was renamed to bitnami; this is not bitnami/bitnami)
+helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets
 helm repo update
 
 # Pull the dependency into charts/
-helm dependency update ./sealed-secrets
+helm dependency update ./apps/sealed-secrets
 
 # Install the controller in kube-system
-helm upgrade --install cluster-sealed-secrets ./sealed-secrets \
+helm upgrade --install cluster-sealed-secrets ./apps/sealed-secrets \
   -n kube-system \
   --create-namespace
 
@@ -99,7 +113,9 @@ kubectl get crd | awk '/sealedsecrets/'
 
 ## Step 3 — Seal your credentials (run once, repeat when rotating)
 
-This step produces the encrypted blobs that go directly into the Helm template.
+This step produces the encrypted manifest you commit to Git. The bootstrap
+script automates exactly these commands in `bootstrap/seal-credentials.sh`;
+they are shown here so you understand what it does.
 
 ```bash
 # 1. Fetch the controller's public certificate
@@ -117,108 +133,85 @@ kubectl create secret generic todo-db-secret \
   --from-literal=DATABASE_URI='postgres://admin:password@my-app-todo-app-postgres:5432/domain' \
   --dry-run=client -o yaml > /tmp/todo-db-secret.yaml
 
-# 3. Encrypt it with kubeseal
+# 3. Encrypt it into a STANDALONE manifest committed to Git
+mkdir -p sealed
 kubeseal \
   --format yaml \
   --cert /tmp/sealed-secrets-cert.pem \
   --scope namespace-wide \
   < /tmp/todo-db-secret.yaml \
-  > /tmp/todo-db-sealedsecret.yaml
+  > sealed/todo-db-sealedsecret.yaml
 
-# 4. Inspect the result — you should see encrypted blobs under spec.encryptedData
-cat /tmp/todo-db-sealedsecret.yaml
+# 4. Inspect the result — encrypted blobs under spec.encryptedData
+cat sealed/todo-db-sealedsecret.yaml
 
 # 5. Delete the plain file immediately
 rm /tmp/todo-db-secret.yaml
 ```
 
-Open `/tmp/todo-db-sealedsecret.yaml` and copy each value from `spec.encryptedData.*` into `templates/database/postgres-sealedsecret.yaml` (see Step 4 below). You are editing a template file that gets committed to Git — the encrypted blobs are safe to commit.
+`sealed/todo-db-sealedsecret.yaml` is safe to commit: the blobs are
+cluster-specific and can only be decrypted by the controller that holds the
+matching private key.
+
+> **Why a standalone manifest, not a chart template?** A SealedSecret is a
+> cluster-specific infrastructure artefact, not application configuration. The
+> canonical chart deliberately does not carry it — keeping it out of the chart
+> is what lets every phase consume the *same* chart. Production charts like
+> `ds-helmchart` go one step further and generate credentials in-cluster (the
+> bootstrap-hook pattern you adopt in Phase 05); SealedSecrets is the Git-based
+> alternative you learn here first.
 
 ---
 
-## Step 4 — Add the SealedSecret template to your chart
+## Step 4 — Wire it into the canonical chart
 
-Create `todo-app/templates/database/postgres-sealedsecret.yaml` and paste the encrypted blobs from Step 3 directly into the file:
+You do **not** copy any chart templates. The canonical chart already ships:
 
-```yaml
-{{- if not .Values.postgres.existingSecret }}
-apiVersion: bitnami.com/v1alpha1
-kind: SealedSecret
-metadata:
-  name: todo-db-secret
-  namespace: {{ .Release.Namespace | quote }}
-  labels:
-    {{- include "todo-app.labels" . | nindent 4 }}
-    app.kubernetes.io/component: postgres
-spec:
-  encryptedData:
-    DATABASE_URI: "<paste your encrypted DATABASE_URI here>"
-    POSTGRES_DB: "<paste your encrypted POSTGRES_DB here>"
-    POSTGRES_PASSWORD: "<paste your encrypted POSTGRES_PASSWORD here>"
-    POSTGRES_USER: "<paste your encrypted POSTGRES_USER here>"
-  template:
-    metadata:
-      name: todo-db-secret
-      namespace: {{ .Release.Namespace | quote }}
-      labels:
-        {{- include "todo-app.labels" . | nindent 8 }}
-        app.kubernetes.io/component: postgres
-    type: Opaque
-{{- end }}
-```
+- a `todo-app.databaseSecretName` helper in `_helpers.tpl` that returns
+  `postgres.existingSecret` when set, otherwise `postgres.secretName`;
+- `envFrom: secretRef` on both the backend and Postgres deployments, pointed at
+  that helper — so both consume `todo-db-secret` as the single source of truth.
 
-> **Why `{{- if not .Values.postgres.existingSecret }}`?** This guard skips the template when `postgres.existingSecret` is set to a non-empty value — useful when a secret already exists in the cluster (e.g., managed by an external secrets operator in production).
-
-> **Why not use `values.yaml` for the blobs?** Encrypted values are cluster-specific: they can only be decrypted by the controller that holds the matching private key. Keeping them in the template makes it obvious they are infrastructure artefacts tied to a specific cluster, not configuration that varies per environment.
-
-Define the secret name explicitly in `values.yaml`:
+The phase override `apps/todo-app/values/prod-values.yaml` sets:
 
 ```yaml
 postgres:
-  secretName: "todo-db-secret"
-  existingSecret: ""   # set this to skip the SealedSecret and use a pre-existing secret
+  existingSecret: "todo-db-secret"   # consume the sealed Secret; skip the bootstrap hook
+  persistence:
+    storageClassName: "local-path"   # no Longhorn yet (that arrives in Phase 05)
 ```
 
-Add a helper in `_helpers.tpl` that reads it:
+Setting `existingSecret` makes the chart use the Secret the controller created
+from your SealedSecret, and disables the chart's own in-cluster bootstrap hook
+(`postgres-secret-bootstrap.yaml` is gated on `not existingSecret`). That hook
+is the Phase 05+ pattern; here you supply the Secret yourself.
 
-```yaml
-{{- define "todo-app.databaseSecretName" -}}
-{{- if .Values.postgres.existingSecret }}
-{{- .Values.postgres.existingSecret }}
-{{- else }}
-{{- required "postgres.secretName is required" .Values.postgres.secretName }}
-{{- end }}
-{{- end }}
+Apply the sealed manifest so the controller materializes `todo-db-secret`:
+
+```bash
+kubectl apply -f sealed/todo-db-sealedsecret.yaml
+
+# The controller decrypts it into a plain Secret
+kubectl get sealedsecret,secret todo-db-secret -n todo
 ```
-
-Use the helper everywhere the secret name appears — both deployments and the SealedSecret metadata:
-
-```yaml
-# postgres-sealedsecret.yaml
-metadata:
-  name: {{ include "todo-app.databaseSecretName" . }}
-  ...
-  template:
-    metadata:
-      name: {{ include "todo-app.databaseSecretName" . }}
-
-# postgres-deployment.yaml and backend-deployment.yaml
-envFrom:
-  - secretRef:
-      name: {{ include "todo-app.databaseSecretName" . }}
-```
-
-The name lives in one place (`values.yaml`). The `required` call makes Helm fail with a clear error if it is ever left empty.
 
 ---
 
 ## Step 5 — Deploy
 
+Deploy the canonical chart with the phase override:
+
 ```bash
-helm upgrade --install my-app ./todo-app \
+helm upgrade --install my-app ../../../application/chart \
   -n todo \
-  -f ./todo-app/values.yaml
+  -f apps/todo-app/values/prod-values.yaml \
+  --set frontend.image.repository="docker.io/<dockerhub-user>/todo-frontend" \
+  --set backend.image.repository="docker.io/<dockerhub-user>/todo-backend"
 ```
+
+Or run `bootstrap/bootstrap.sh`, which installs the controller, seals and
+applies the credentials, builds/pushes the images, and deploys — all from
+`application/chart`.
 
 ---
 
@@ -249,21 +242,37 @@ kubectl logs -n kube-system deploy/sealed-secrets
 
 - Sealed Secrets controller is running in `kube-system`
 - `kubeseal` was run against the correct controller name and namespace
-- The encrypted blobs in `postgres-sealedsecret.yaml` came from the same cluster
-- `postgres.existingSecret` in `values.yaml` is empty (otherwise the template is skipped)
-- No leftover plain `Secret` template is being rendered at the same time
+- The encrypted blobs in `sealed/todo-db-sealedsecret.yaml` came from the same cluster
+- `postgres.existingSecret` is set to `todo-db-secret` in the phase values
+  (otherwise the chart's bootstrap hook runs instead and generates a different Secret)
+- `todo-db-secret` exists in the `todo` namespace before the pods start
 
 ---
 
 ## Credential rotation
 
-When you need to change credentials, repeat Step 3 with the new values, update the encrypted blobs in `postgres-sealedsecret.yaml`, and redeploy:
+When you need to change credentials, repeat Step 3 with the new values
+(overwriting `sealed/todo-db-sealedsecret.yaml`), re-apply, and redeploy:
 
 ```bash
-helm upgrade --install my-app ./todo-app -n todo -f ./todo-app/values.yaml
+kubectl apply -f sealed/todo-db-sealedsecret.yaml
+helm upgrade --install my-app ../../../application/chart \
+  -n todo -f apps/todo-app/values/prod-values.yaml
 ```
 
+Or simply rerun `bootstrap/seal-credentials.sh --redeploy`.
+
 Never seal secrets during `helm upgrade`. CI/CD should only ever apply encrypted values already committed to Git.
+
+---
+
+## Beyond manual sealing — the bootstrap hook pattern
+
+Manual SealedSecrets are useful because they teach the full encryption flow: `kubeseal` encrypts with the controller's public key, Git stores only encrypted blobs, and the controller decrypts them inside the cluster. That model also has operational costs. Every credential rotation requires re-sealing and committing new blobs, the encrypted values only work with the controller that created the matching private key, and teams must keep the sealing workflow consistent across clusters.
+
+Starting in Phase 05, the todo-app chart uses a Helm bootstrap hook instead. A small `pre-install,pre-upgrade` Job creates the database Secret inside the cluster if it does not already exist. When no password is provided, the Job generates one once and then exits without rotating it on later upgrades. This keeps todo-app credentials entirely out of Git, removes manual sealing from the app workflow, and makes repeated `helm upgrade` runs idempotent. It is the same in-cluster generation pattern production charts like `ds-helmchart` use for their own credentials.
+
+SealedSecrets still matter for cases where secrets must be prepared before an application starts and cannot be generated simply in-cluster. Phase 07 uses that approach for authentik, while todo-app continues to use the bootstrap hook.
 
 ---
 
@@ -272,7 +281,7 @@ Never seal secrets during `helm upgrade`. CI/CD should only ever apply encrypted
 These are optional but build real understanding of Sealed Secrets behavior.
 
 1. **Scope comparison** — seal a secret with `--scope strict`, then change its name or namespace and re-apply. Observe that decryption fails. Understand why `namespace-wide` is more flexible.
-2. **Tamper test** — change one character in an encrypted blob in `postgres-sealedsecret.yaml`, apply, and observe the controller error.
+2. **Tamper test** — change one character in an encrypted blob in `sealed/todo-db-sealedsecret.yaml`, apply, and observe the controller error.
 3. **Wrong-cluster test** — apply the same `SealedSecret` in a different cluster. It cannot decrypt because the key pair is different.
 4. **Controller downtime** — scale the controller to 0 replicas, apply a new `SealedSecret`, then scale back to 1 and watch it reconcile.
 5. **Git hygiene** — confirm no plain secret file was ever committed: `git log --all --full-history -- "*secret*"`.
@@ -290,9 +299,9 @@ These are optional but build real understanding of Sealed Secrets behavior.
 
 - Sealed Secrets controller installed with Helm and CRD available
 - DB credentials sealed with `kubeseal` and plain file deleted immediately
-- `todo-app` chart has `postgres-sealedsecret.yaml` with encrypted blobs committed to Git
-- `values.yaml` contains zero plaintext credentials
+- `sealed/todo-db-sealedsecret.yaml` committed to Git with encrypted blobs only
+- The phase deploys the canonical `application/chart` (no copied chart templates)
+- `postgres.existingSecret: todo-db-secret` consumes the sealed Secret and skips the bootstrap hook
 - Backend and Postgres both consume `todo-db-secret` as the single source of truth
 - End-to-end deployment works with no plaintext credentials anywhere in Git
 - Extra exercises completed and findings documented
-

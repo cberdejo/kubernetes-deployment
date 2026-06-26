@@ -2,6 +2,10 @@
 # Bootstraps Phase 04 from a clean cluster.
 # Installs Sealed Secrets, seals credentials, and deploys todo-app.
 #
+# This phase consumes the canonical chart at application/chart (single source of
+# truth) and supplies the database Secret out-of-band as a SealedSecret. The
+# per-phase overrides live in apps/todo-app/values/prod-values.yaml.
+#
 # Prerequisites:
 #   - helm installed
 #   - .env filled in (copy from .env.example)
@@ -11,6 +15,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOLUTION="$SCRIPT_DIR/.."
+REPO_ROOT="$(cd "$SOLUTION/../../.." && pwd)"
+CHART_DIR="$REPO_ROOT/application/chart"
+CHART_VALUES="$SOLUTION/apps/todo-app/values/prod-values.yaml"
 ENV_FILE="$SCRIPT_DIR/.env"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -27,6 +34,7 @@ source "$ENV_FILE"
 : "${POSTGRES_USER:?POSTGRES_USER not set in .env}"
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD not set in .env}"
 : "${POSTGRES_DB:?POSTGRES_DB not set in .env}"
+: "${DOCKERHUB_USER:?DOCKERHUB_USER not set in .env}"
 : "${IMAGE_TAG:?IMAGE_TAG not set in .env}"
 RELEASE_NAME="${RELEASE_NAME:-my-app}"
 info "Release name: $RELEASE_NAME"
@@ -62,7 +70,7 @@ fi
 # ── Step 1: Sealed Secrets controller ────────────────────────────
 step "Installing Sealed Secrets controller"
 
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets --force-update &>/dev/null
+helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets --force-update &>/dev/null
 helm repo update sealed-secrets &>/dev/null
 helm dependency update "$SOLUTION/apps/sealed-secrets"
 
@@ -78,27 +86,27 @@ info "Sealed Secrets controller running"
 step "Sealing PostgreSQL credentials"
 "$SCRIPT_DIR/seal-credentials.sh"
 
-# ── Step 3: Build and load images into minikube ───────────────────
-step "Building and loading app images"
+# ── Step 3: Build and push app images ──────────────────────────────
+step "Building and pushing app images"
 
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
-
-docker build -t "frontend:${IMAGE_TAG}" "$REPO_ROOT/application/frontend" \
+docker build -t "docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG}" "$REPO_ROOT/application/frontend" \
   --build-arg VITE_API_URL=/api/v1
-docker build -t "backend:${IMAGE_TAG}"  "$REPO_ROOT/application/backend"
+docker build -t "docker.io/${DOCKERHUB_USER}/todo-backend:${IMAGE_TAG}"  "$REPO_ROOT/application/backend"
 
-minikube image load "frontend:${IMAGE_TAG}"
-minikube image load "backend:${IMAGE_TAG}"
-info "Images loaded into minikube"
+docker push "docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG}"
+docker push "docker.io/${DOCKERHUB_USER}/todo-backend:${IMAGE_TAG}"
+info "Images pushed to Docker Hub"
 
 # ── Step 4: Deploy todo-app ───────────────────────────────────────
 step "Deploying todo-app"
 
 kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
 
-helm upgrade --install "$RELEASE_NAME" "$SOLUTION/apps/todo-app" \
-  -f "$SOLUTION/apps/todo-app/values.yaml" \
+helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+  -f "$CHART_VALUES" \
+  --set frontend.image.repository="docker.io/${DOCKERHUB_USER}/todo-frontend" \
   --set frontend.image.tag="${IMAGE_TAG}" \
+  --set backend.image.repository="docker.io/${DOCKERHUB_USER}/todo-backend" \
   --set backend.image.tag="${IMAGE_TAG}" \
   -n todo \
   --wait --timeout 3m

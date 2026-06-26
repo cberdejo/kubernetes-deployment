@@ -1,9 +1,10 @@
-global: {}
+global:
+  imagePullSecrets: []
 
 frontend:
   replicaCount: 1
   image:
-    repository: frontend
+    repository: "docker.io/your-dockerhub-user/todo-frontend"
     tag: "1.0.0"
   imagePullPolicy: IfNotPresent
   containerPort: 80
@@ -15,11 +16,16 @@ frontend:
   config:
     viteApiUrl: "/api/v1"
     backendUpstream: ""
+  # No Gateway API in Phase 04 (that arrives in Phase 06) — expose via NodePort.
+  gatewayRoute:
+    enabled: false
+  auth:
+    enabled: false
 
 backend:
   replicaCount: 1
   image:
-    repository: backend
+    repository: "docker.io/your-dockerhub-user/todo-backend"
     tag: "1.0.0"
   imagePullPolicy: IfNotPresent
   containerPort: 8080
@@ -32,7 +38,6 @@ backend:
     port: "8080"
     postgresHost: ""
     postgresPort: "5432"
-  existingSecret: ""
 
 postgres:
   replicaCount: 1
@@ -46,10 +51,16 @@ postgres:
     port: 5432
     targetPort: 5432
   secretName: "todo-db-secret"
-  existingSecret: ""
+  # Phase 04 supplies the database Secret OUT-OF-BAND as a SealedSecret
+  # (bootstrap/seal-credentials.sh seals it and commits the encrypted blob).
+  # Setting existingSecret makes the canonical chart consume that Secret and
+  # skip its own in-cluster bootstrap hook. That hook is the Phase 05+ pattern;
+  # this is the manual-SealedSecret stage of the secrets progression.
+  existingSecret: "todo-db-secret"
   persistence:
     enabled: true
     size: 1Gi
     accessModes:
       - ReadWriteOnce
-    storageClassName: standard
+    # No Longhorn yet in Phase 04 (that's Phase 05). k3s ships "local-path".
+    storageClassName: "local-path"
