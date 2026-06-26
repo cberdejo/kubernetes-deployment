@@ -1,14 +1,15 @@
 # Phase 05 — Distributed Persistent Storage with Longhorn
 
-This phase adds real persistent storage to the todo-app. You will create a Longhorn wrapper chart, update the Sealed Secrets controller to its own namespace, and wire PostgreSQL to a Longhorn-backed PVC so data survives Pod restarts and node rescheduling.
+This phase adds real persistent storage to the todo-app. You will create a Longhorn wrapper chart and wire the canonical `application/chart` Helm chart to a Longhorn-backed PVC so data survives Pod restarts and node rescheduling.
 
 **What you build in this phase:**
 
 | Artifact | Purpose |
 |---|---|
 | `apps/longhorn/` | Helm wrapper chart that installs the Longhorn CSI driver |
-| `apps/sealed-secrets/` | Updated wrapper — controller moves to `sealed-secrets` namespace |
-| Updated `apps/todo-app/` | Adds a PVC template and mounts it in the PostgreSQL deployment |
+| `application/chart/` | Canonical todo-app Helm chart used from this phase onward |
+| `solution/apps/todo-app/values/prod-values.yaml` | Phase 05 values file for the canonical chart |
+| Updated todo-app chart | Adds a PVC template, mounts it in PostgreSQL, and bootstraps the DB Secret in-cluster |
 
 Compare your work with `solution/` when you are done.
 
@@ -197,77 +198,31 @@ kubectl patch storageclass <existing-default> \
 
 ---
 
-## Step 3 & 4 — Install Sealed Secrets and seal the PostgreSQL credentials
+## Step 3 — Use the canonical todo-app chart
 
-Follow **[phases/04-secure-secrets-managment/tasks.md](../04-secure-secrets-managment/tasks.md)** for the full process.
+From this phase onward, the todo-app chart lives at the repository root:
 
-Two differences apply in Phase 05:
-
-| | Phase 04 | Phase 05 |
-|---|---|---|
-| Controller namespace | `kube-system` | `sealed-secrets` |
-| Helm release name | `sealed-secrets` | `sealed-secrets-prod` |
-
-Create the wrapper chart `apps/sealed-secrets/` with the files below, then install it.
-
-**`apps/sealed-secrets/Chart.yaml`**
-
-```yaml
-apiVersion: v2
-name: cluster-sealed-secrets
-description: Installs the Bitnami Sealed Secrets controller
-type: application
-version: 1.0.0
-dependencies:
-  - name: sealed-secrets
-    version: 2.18.3
-    repository: https://bitnami-labs.github.io/sealed-secrets
+```text
+application/chart/
+├── Chart.yaml
+├── templates/
+└── values/
+    └── prod-values.yaml
 ```
 
-**`apps/sealed-secrets/values/prod-values.yaml`**
+The phase solution keeps only `solution/apps/todo-app/values/prod-values.yaml`. The chart templates live in `application/chart`, while each phase owns only the values it needs for that phase.
 
-```yaml
-sealed-secrets:
-  # fullnameOverride keeps the controller name stable across release name changes.
-  # kubeseal uses this name via --controller-name.
-  fullnameOverride: sealed-secrets
-```
-
-**Install the controller:**
-
-```bash
-helm dependency update ./apps/sealed-secrets
-
-helm upgrade --install sealed-secrets-prod ./apps/sealed-secrets \
-  -f ./apps/sealed-secrets/values/prod-values.yaml \
-  -n sealed-secrets \
-  --create-namespace
-
-kubectl get pods -n sealed-secrets
-```
-
-**Seal credentials:**
-
-When you reach the `kubeseal` commands in Phase 04, add `--controller-namespace sealed-secrets` to every call:
-
-```bash
-kubeseal --fetch-cert \
-  --controller-name sealed-secrets \
-  --controller-namespace sealed-secrets \
-  > /tmp/sealed-secrets-cert.pem
-```
-
-Paste the four encrypted blobs into `apps/todo-app/templates/database/postgres-sealedsecret.yaml` (created in the next step).
+The chart creates `todo-db-secret` with a `pre-install,pre-upgrade` Helm hook when no `postgres.existingSecret` is configured. If `postgres.bootstrap.credentials.password` is omitted or empty, the hook generates one alphanumeric password once in-cluster and leaves any existing Secret unchanged on upgrades.
 
 ---
 
-## Step 5 — Update the todo-app chart for persistent storage
+## Step 4 — Update the todo-app chart for persistent storage
 
-Starting from your Phase 04 `todo-app` chart, make the following changes.
+Starting from the canonical `application/chart`, make the following changes.
 
 ### 5a — Add the PVC template
 
-Create `apps/todo-app/templates/database/postgres-pvc.yaml`:
+Create `application/chart/templates/database/postgres-pvc.yaml`:
 
 ```yaml
 {{- if .Values.postgres.persistence.enabled }}
@@ -290,7 +245,7 @@ spec:
 
 ### 5b — Mount the PVC in the PostgreSQL deployment
 
-In `apps/todo-app/templates/database/postgres-deployment.yaml`, add the `volumeMounts` and `volumes` blocks inside the container spec (guarded by the `persistence.enabled` flag):
+In `application/chart/templates/database/postgres-deployment.yaml`, add the `volumeMounts` and `volumes` blocks inside the container spec (guarded by the `persistence.enabled` flag):
 
 ```yaml
       containers:
@@ -323,18 +278,20 @@ spec:
 
 ### 5c — Add persistence values
 
-In `apps/todo-app/values/prod-values.yaml`, add the persistence block under `postgres`:
+In `solution/apps/todo-app/values/prod-values.yaml`, keep the Phase 05 deployment values. This file is complete enough to install the canonical chart from Docker Hub OCI, while disabling Gateway routing until Phase 06:
 
 ```yaml
+frontend:
+  service:
+    type: NodePort
+    port: 3000
+    targetPort: 80
+    nodePort: 30080
+  gatewayRoute:
+    enabled: false
+
 postgres:
-  ...
-  secretName: "todo-db-secret"
-  existingSecret: ""
   persistence:
-    enabled: true
-    size: 1Gi
-    accessModes:
-      - ReadWriteOnce
     storageClassName: longhorn
 ```
 
@@ -360,14 +317,16 @@ docker build \
 docker push docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG}
 ```
 
-Update `repository` values in `apps/todo-app/values/prod-values.yaml` with your Docker Hub username before deploying.
+The bootstrap script overrides the image repositories from `.env`, so you do not need to commit your Docker Hub username into the values file.
 
 ---
 
 ## Step 7 — Deploy the todo-app
 
 ```bash
-helm upgrade --install my-app ./apps/todo-app \
+helm upgrade --install my-app \
+  oci://registry-1.docker.io/<dockerhub-user>/todo-app \
+  --version 0.1.0 \
   -f ./apps/todo-app/values/prod-values.yaml \
   -n todo \
   --create-namespace
@@ -408,15 +367,14 @@ kubectl port-forward svc/longhorn-frontend 8080:80 -n longhorn
 - `longhorn` StorageClass exists: `kubectl get storageclass`
 - PVC is `Bound`; if `Pending`: `kubectl describe pvc -n todo`
 - `subPath: pgdata` is present in the postgres Deployment
-- `postgres-sealedsecret.yaml` has real encrypted blobs, not `cipher value` placeholders
-- Sealed Secrets controller is Running in `sealed-secrets` namespace before sealing
-- SealedSecret was sealed against this cluster — blobs from another cluster will not decrypt
+- `todo-db-secret` exists after Helm runs the bootstrap hook: `kubectl get secret todo-db-secret -n todo`
+- If the OCI chart cannot be pulled, run `helm registry login registry-1.docker.io` and confirm the chart version was pushed
 
 ---
 
 ## Credential rotation
 
-Rotating DB credentials follows the same process as Phase 04 (re-seal with `kubeseal` and redeploy). The Longhorn volume persists through credential rotations.
+Set a new `POSTGRES_PASSWORD` in `bootstrap/.env` before the first install if you need deterministic credentials. Existing Secrets are not rotated automatically; delete or replace `todo-db-secret` deliberately if you want to rotate credentials. The Longhorn volume persists through credential rotations.
 
 ---
 
@@ -444,9 +402,8 @@ Rotating DB credentials follows the same process as Phase 04 (re-seal with `kube
 
 - `apps/longhorn/` wrapper chart installed, all Longhorn pods Running
 - `longhorn` StorageClass is the default
-- `apps/sealed-secrets/` installed in the `sealed-secrets` namespace
-- `postgres-sealedsecret.yaml` contains real encrypted blobs
-- `postgres-pvc.yaml` template exists and references `storageClassName: longhorn`
+- `solution/apps/todo-app` contains only the Phase 05 values file
+- `application/chart/templates/database/postgres-pvc.yaml` exists and references `storageClassName: longhorn` through values
 - PostgreSQL Deployment uses `strategy: Recreate` and mounts the PVC with `subPath: pgdata`
 - PVC is `Bound` and backed by a Longhorn volume
 - Todos created before a Pod restart survive the restart
