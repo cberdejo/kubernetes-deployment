@@ -10,7 +10,8 @@ This phase centralizes all external traffic through a single, policy-controlled 
 | `apps/envoy-gateway/` | Helm wrapper that installs the Gateway API control plane and creates `GatewayClass` + `Gateway` |
 | `apps/cert-manager/` | Helm wrapper that automates TLS certificate issuance and renewal |
 | Updated `apps/longhorn/` | Enables the Longhorn UI `HTTPRoute` via `gatewayRoute.enabled: true` |
-| Updated `apps/todo-app/` | Adds an `HTTPRoute` so the frontend is reachable by hostname on port 80/443 |
+| `application/chart/` | Canonical todo-app Helm chart; Phase 06 references it through `solution/apps/todo-app` |
+| Updated todo-app chart | Adds an `HTTPRoute` and a Helm hook that creates the PostgreSQL Secret in-cluster if it does not already exist |
 
 Compare your work with `solution/` when you are done.
 
@@ -267,7 +268,7 @@ metadata:
 
 This template uses `.Release.Namespace` so it labels whatever namespace the chart is installed into — you never need to hardcode `todo` here. Helm applies this on every `helm upgrade --install`, so the label persists even if someone removes it manually.
 
-Create `apps/todo-app/templates/httproute.yaml`:
+In the canonical chart, create `application/chart/templates/frontend/route.yaml`:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -293,6 +294,8 @@ spec:
 
 No hostname filter here, this route matches any request that no other HTTPRoute claims. The Longhorn route in the next step uses a hostname filter, so it wins over this one for `longhorn.local` traffic.
 
+> **Forward-auth is wired but disabled in this phase.** The canonical chart also ships `frontend/security-policy.yaml`, an Envoy Gateway `SecurityPolicy` that puts forward-auth (ext-auth) in front of this same HTTPRoute. It only renders when **both** `frontend.gatewayRoute.enabled` and `frontend.auth.enabled` are true. This phase keeps `frontend.auth.enabled: false`, so the route serves unauthenticated traffic — the SecurityPolicy is **prepared for Phase 07**, where authentik is added and `auth.enabled` is flipped to `true` to protect the frontend. Nothing about auth is exercised here; only the plain HTTPRoute is tested.
+
 **Redeploy the todo-app:**
 
 ```bash
@@ -300,6 +303,45 @@ helm upgrade --install my-app ./apps/todo-app \
   -f ./apps/todo-app/values/prod-values.yaml \
   -n todo
 ```
+
+In the solution, `apps/todo-app` is a reference to `../../../application/chart`. The real chart source lives in `application/chart`, and that is the chart you package and publish.
+
+The canonical chart creates `todo-db-secret` with a `pre-install,pre-upgrade` Helm hook when no `postgres.existingSecret` is configured. If the Secret already exists, the hook leaves it unchanged so upgrades do not rotate database credentials accidentally.
+
+The password contract is intentionally simple:
+
+- Omit `postgres.bootstrap.credentials.password`, or leave it empty in an override file, to generate one alphanumeric password in-cluster.
+- Set `postgres.bootstrap.credentials.password` only when you need deterministic credentials for CI, restore, or a repeatable lab setup.
+- Keep `user`, `password`, and `database` URI-safe (`A-Z a-z 0-9 . _ ~ -`) because the chart builds `DATABASE_URI` without percent-encoding.
+
+### (Optional preview) Publish the todo-app chart to OCI
+
+By default the solution bootstrap deploys the canonical `application/chart` straight from disk (local), so this phase needs no registry. This section is an **optional preview** of the OCI workflow: Docker Hub acts as a temporary registry now, and Phase 08 swaps it for a self-hosted Harbor by pointing the same `CHART_REGISTRY` variable at the Harbor domain. OCI only becomes the real deploy path once Harbor (Phase 08) and ArgoCD (Phase 09) exist.
+
+```bash
+cd phases/06-routing-and-traffic-exposure/solution
+cp bootstrap/.env.example bootstrap/.env
+# Edit DOCKERHUB_USER, IMAGE_TAG, and optionally CHART_REGISTRY/CHART_VERSION.
+
+helm registry login registry-1.docker.io \
+  --username <dockerhub-user>
+
+./scripts/publish-chart.sh
+```
+
+The published chart is then installable with:
+
+```bash
+helm upgrade --install my-app \
+  oci://registry-1.docker.io/<dockerhub-user>/todo-app \
+  --version 0.1.0 \
+  -f ./apps/todo-app/values/prod-values.yaml \
+  -n todo
+```
+
+To make the bootstrap consume that published chart instead of the local one, set
+`TODO_APP_CHART=oci://registry-1.docker.io/${DOCKERHUB_USER}/todo-app` in `bootstrap/.env`.
+Leaving `TODO_APP_CHART=local` (the default) keeps the phase self-contained.
 
 **Add a hosts entry on your workstation** (replace `192.168.1.200` with the IP from Step 3):
 
@@ -601,6 +643,7 @@ curl -I --cacert homelab-ca.crt https://todo.local
 - `http://todo.local` resolves but returns 404 — HTTPRoute is attached but the hostname or path does not match; check `kubectl get httproute -A -o yaml`
 - Certificate stuck in `False` — inspect with `kubectl describe certificate -n envoy-gateway` and `kubectl describe certificaterequest -n envoy-gateway`; common cause is missing CRDs or `ClusterIssuer` not Ready
 - Browser rejects HTTPS with self-signed warning — expected; import `homelab-ca.crt` into your browser trust store or use `curl -k` for quick testing
+- `helm upgrade` fails pulling `oci://registry-1.docker.io/<user>/todo-app` — publish the chart with `./scripts/publish-chart.sh`, confirm `CHART_VERSION` matches `application/chart/Chart.yaml`, and run `helm registry login` for private repositories
 
 ---
 
@@ -630,7 +673,8 @@ curl -I --cacert homelab-ca.crt https://todo.local
 - `apps/envoy-gateway/` wrapper chart installed; `GatewayClass` is `Accepted`
 - Envoy Gateway `LoadBalancer` service has an external IP assigned by MetalLB
 - `Gateway` resource has HTTP (port 80) and HTTPS (port 443) listeners, both using `from: Selector`
-- `todo` namespace has label `expose-via-gateway: "true"`; `apps/todo-app/` has an `HTTPRoute` attached to the Gateway; `http://todo.local` loads the app
+- `todo` namespace has label `expose-via-gateway: "true"`; `application/chart` has an `HTTPRoute` attached to the Gateway; `http://todo.local` loads the app
+- `application/chart` has chart `version: 0.1.0`, can be pushed to OCI with `solution/scripts/publish-chart.sh`, and the bootstrap can consume it from `CHART_REGISTRY`
 - `longhorn` namespace has label `expose-via-gateway: "true"`; `apps/longhorn/` has `gatewayRoute.enabled: true`; `http://longhorn.local` loads the Longhorn UI
 - `apps/cert-manager/` wrapper chart installed; `homelab-ca` `ClusterIssuer` is `Ready`
 - `Certificate` in the `envoy-gateway` namespace is `READY=True`
