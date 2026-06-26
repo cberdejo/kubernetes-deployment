@@ -1,0 +1,122 @@
+global:
+  imagePullSecrets: []
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: "docker.io/your-dockerhub-user/todo-frontend"
+    tag: "1.0.0"
+  imagePullPolicy: IfNotPresent
+  containerPort: 80
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  config:
+    viteApiUrl: "/api/v1"
+    backendUpstream: ""
+  gatewayRoute:
+    enabled: false
+    hostname: "todo.local"
+    gateway:
+      name: public-gateway
+      namespace: envoy-gateway
+    pathPrefix: /
+  auth:
+    enabled: false
+    path: /outpost.goauthentik.io/auth/envoy
+    backend:
+      serviceName: authentik-server
+      namespace: authentik
+      port: 80
+    headersToExtAuth:
+      - cookie
+      - authorization
+      - x-forwarded-for
+      - x-forwarded-host
+      - x-forwarded-proto
+      - x-forwarded-uri
+    headersToBackend:
+      - x-authentik-username
+      - x-authentik-groups
+      - x-authentik-entitlements
+      - x-authentik-email
+      - x-authentik-name
+      - x-authentik-uid
+      - x-authentik-jwt
+      - x-authentik-meta-jwks
+      - x-authentik-meta-outpost
+      - x-authentik-meta-provider
+      - x-authentik-meta-app
+      - x-authentik-meta-version
+
+backend:
+  replicaCount: 1
+  image:
+    repository: "docker.io/your-dockerhub-user/todo-backend"
+    tag: "1.0.0"
+  imagePullPolicy: IfNotPresent
+  containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  config:
+    host: "0.0.0.0"
+    port: "8080"
+    # Defaults to <release-name>-todo-app-postgres via template when empty
+    postgresHost: ""
+    postgresPort: "5432"
+  existingSecret: ""
+
+postgres:
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: "15.10"
+  imagePullPolicy: IfNotPresent
+  containerPort: 5432
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  secretName: "todo-db-secret"
+  # Set existingSecret to use a Secret created outside this chart.
+  # When existingSecret is set, the bootstrap hook below is not rendered.
+  existingSecret: ""
+  bootstrap:
+    enabled: true
+    # bitnami/kubectl no longer publishes pinned version tags (only "latest").
+    # bitnamilegacy/kubectl keeps the old pinned-tag images for this reason.
+    image: docker.io/bitnamilegacy/kubectl:1.33.4
+    credentials:
+      user: admin
+      # Omit password, or leave it empty in an override file, to generate an
+      # alphanumeric password once in-cluster. Set it only when a fixed,
+      # URI-safe value is required for CI, restore, or deterministic installs.
+      # password: "replace-with-fixed-password"
+      database: domain
+  persistence:
+    enabled: true
+    size: 1Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: longhorn

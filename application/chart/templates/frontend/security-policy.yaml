@@ -1,0 +1,26 @@
+{{- if and .Values.frontend.gatewayRoute.enabled .Values.frontend.auth.enabled }}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: {{ include "todo-app.fullname" . }}-frontend-auth
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ include "todo-app.fullname" . }}-frontend
+  extAuth:
+    failOpen: false
+    http:
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: {{ .Values.frontend.auth.backend.serviceName }}
+          namespace: {{ .Values.frontend.auth.backend.namespace }}
+          port: {{ .Values.frontend.auth.backend.port }}
+      path: {{ .Values.frontend.auth.path | quote }}
+      headersToBackend:
+        {{- toYaml .Values.frontend.auth.headersToBackend | nindent 8 }}
+{{- end }}
