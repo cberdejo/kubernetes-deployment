@@ -168,7 +168,6 @@ apps/envoy-gateway/
 ├── values/
 │   └── prod-values.yaml
 └── templates/
-    ├── gatewayclass.yaml
     └── gateway.yaml
 ```
 
@@ -192,7 +191,9 @@ dependencies:
 gateway-helm: {}
 ```
 
-**`apps/envoy-gateway/templates/gatewayclass.yaml`**
+**`apps/envoy-gateway/templates/gateway.yaml`**
+
+Both the `GatewayClass` and the `Gateway` live in a single file, separated by `---`:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -201,11 +202,7 @@ metadata:
   name: envoy
 spec:
   controllerName: gateway.envoyproxy.io/gatewayclass-controller
-```
-
-**`apps/envoy-gateway/templates/gateway.yaml`**
-
-```yaml
+---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -255,18 +252,13 @@ Record that IP, you will add it to `/etc/hosts` in the next step.
 
 ## Step 4 — Add the todo-app HTTPRoute
 
-Because the Gateway uses `from: Selector`, the `todo` namespace must carry the `expose-via-gateway: "true"` label before any HTTPRoute inside it can attach. Create `apps/todo-app/templates/namespace.yaml`:
+Because the Gateway uses `from: Selector`, the `todo` namespace must carry the `expose-via-gateway: "true"` label before any HTTPRoute inside it can attach:
 
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Release.Namespace }}
-  labels:
-    expose-via-gateway: "true"
+```bash
+kubectl label namespace todo expose-via-gateway=true
 ```
 
-This template uses `.Release.Namespace` so it labels whatever namespace the chart is installed into — you never need to hardcode `todo` here. Helm applies this on every `helm upgrade --install`, so the label persists even if someone removes it manually.
+The solution's `bootstrap.sh` creates namespaces with the label already applied. If you prefer a declarative approach, you can add a `Namespace` resource to your chart templates, but the canonical chart does not manage namespace creation — it is left to the bootstrap or the operator.
 
 In the canonical chart, create `application/chart/templates/frontend/route.yaml`:
 
@@ -356,22 +348,13 @@ Open `http://todo.local` in your browser — the todo-app should load.
 
 ## Step 5 — Enable the Longhorn UI route
 
-The `longhorn` namespace also needs the `expose-via-gateway: "true"` label. Add it to `apps/longhorn/templates/namespace.yaml` alongside the existing Pod Security Admission labels:
+The `longhorn` namespace also needs the `expose-via-gateway: "true"` label:
 
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: longhorn
-  labels:
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/enforce-version: latest
-    pod-security.kubernetes.io/audit: privileged
-    pod-security.kubernetes.io/audit-version: latest
-    pod-security.kubernetes.io/warn: privileged
-    pod-security.kubernetes.io/warn-version: latest
-    expose-via-gateway: "true"
+```bash
+kubectl label namespace longhorn expose-via-gateway=true
 ```
+
+As with the `todo` namespace, the solution's `bootstrap.sh` creates the namespace with both the Pod Security Admission labels and the gateway label already applied.
 
 The Longhorn wrapper chart already has an `HTTPRoute` template guarded by a flag. Enable it by updating `apps/longhorn/values/prod-values.yaml`:
 
@@ -415,15 +398,15 @@ Open `http://longhorn.local`, the Longhorn UI should load. Open `http://todo.loc
 
 ## Step 6 — Install cert-manager
 
-Create the following directory structure:
+cert-manager is split into two separate Helm releases: the controller (which installs the CRDs and runs the cert-manager pods) and the issuers (which create `ClusterIssuer` and `Certificate` resources that depend on those CRDs). The issuers must be installed **after** the CRDs are established — bundling them into the same chart would fail because Helm would try to apply `ClusterIssuer` resources before the CRD is registered.
+
+### 6a — Install the cert-manager controller
 
 ```
 apps/cert-manager/
 ├── Chart.yaml
-├── values/
-│   └── prod-values.yaml
-└── templates/
-    └── clusterissuer.yaml
+└── values/
+    └── prod-values.yaml
 ```
 
 **`apps/cert-manager/Chart.yaml`**
@@ -450,9 +433,40 @@ cert-manager:
 
 > **Why `crds.enabled: true`?** cert-manager ships its CRDs separately from the chart. This value installs them as part of `helm upgrade --install` so `Certificate` and `ClusterIssuer` resources are available immediately after install.
 
-**`apps/cert-manager/templates/issuers/selfsigned-cluster-issuer.yaml`**
+```bash
+helm dependency update ./apps/cert-manager
+
+helm upgrade --install cluster-cert-manager ./apps/cert-manager \
+  -f ./apps/cert-manager/values/prod-values.yaml \
+  -n cert-manager \
+  --create-namespace
+
+kubectl rollout status deploy/cluster-cert-manager-cert-manager -n cert-manager
+```
+
+### 6b — Install the CA issuers
+
+Once the cert-manager CRDs are established, install the issuers as a separate chart:
+
+```
+apps/cert-manager-issuers/
+├── Chart.yaml
+└── templates/
+    └── selfsigned-cluster-issuer.yaml
+```
+
+**`apps/cert-manager-issuers/Chart.yaml`**
+
+```yaml
+apiVersion: v2
+name: cluster-cert-manager-issuers
+type: application
+version: 1.0.0
+```
 
 For a homelab without a public domain, a self-signed CA is the right choice. You create a root CA and use it to sign all service certificates. This requires three resources because cert-manager cannot issue a CA certificate without an issuer, and the issuer backing the CA cannot exist until the CA Secret is written:
+
+**`apps/cert-manager-issuers/templates/selfsigned-cluster-issuer.yaml`**
 
 ```yaml
 ---
@@ -490,19 +504,13 @@ spec:
 
 > **Self-signed vs Let's Encrypt:** Let's Encrypt requires a publicly reachable domain and an ACME challenge (HTTP-01 or DNS-01). For homelab `.local` hostnames this is not possible, use the self-signed CA instead. If you have a public domain, replace `homelab-ca` with an ACME `ClusterIssuer` pointing at `https://acme-v02.api.letsencrypt.org/directory`.
 
-**Install cert-manager:**
-
 ```bash
-helm dependency update ./apps/cert-manager
+helm upgrade --install cluster-cert-manager-issuers ./apps/cert-manager-issuers \
+  -n cert-manager
 
-helm upgrade --install cluster-cert-manager ./apps/cert-manager \
-  -f ./apps/cert-manager/values/prod-values.yaml \
-  -n cert-manager \
-  --create-namespace
-
-kubectl rollout status deploy/cluster-cert-manager-cert-manager -n cert-manager
 kubectl get clusterissuer
 # Expected: homelab-ca   True   ...
+#           selfsigned-root   True   ...
 ```
 
 ---

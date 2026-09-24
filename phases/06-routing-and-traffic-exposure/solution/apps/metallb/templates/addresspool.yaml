@@ -9,5 +9,4 @@ metadata:
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
   addresses:
-    - 192.168.220.104/32
-    - 192.168.220.200-192.168.220.210
+    - 172.22.239.200-172.22.239.210
