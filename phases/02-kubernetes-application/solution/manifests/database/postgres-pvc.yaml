@@ -4,7 +4,7 @@ metadata:
   name: postgres-pvc
   namespace: todo-app
 spec:
-  storageClassName: standard
+  storageClassName: local-path
   accessModes:
     - ReadWriteOnce
   resources:
