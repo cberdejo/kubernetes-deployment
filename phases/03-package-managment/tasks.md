@@ -234,10 +234,18 @@ Before upgrading with new values, move credentials out of CLI flags and into a r
 
 ---
 
-## 7. Recommended Reading
+## 7. The canonical chart at `application/chart`
+
+The chart you built in this phase is a learning exercise. The repository already contains a production-ready version of the same chart at [`application/chart/`](../../application/chart/). It includes all the templates and helpers you practiced here, plus additional features (bootstrap hooks, Gateway API routes, auth integration) that are gated behind value flags and progressively enabled in later phases.
+
+From Phase 04 onwards, every phase deploys from `application/chart/` instead of carrying its own copy. Each phase only provides a **values override file** that enables the features it introduces, while the chart templates stay in one place. This is the standard GitOps pattern: one chart, many environments — only the values change.
+
+---
+
+## 8. Recommended Reading
 [Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)
 
-## 8. Phase 03 Success Criteria
+## 9. Phase 03 Success Criteria
 
 [ ] The `todo-app` Chart was created and default templates were cleaned up.
 [ ] Static manifests have been parameterized (images, replicas, ports, persistence) pointing to `values.yaml`.
