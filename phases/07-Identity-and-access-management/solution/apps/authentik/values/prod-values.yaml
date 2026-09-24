@@ -1,0 +1,46 @@
+authentik:
+  # Service names: fullnameOverride ensures stable names (authentik-server,
+  # authentik-worker) regardless of the Helm release name, matching the ext-auth
+  # backend defaults in the todo-app chart.
+  fullnameOverride: authentik
+
+  authentik:
+    secret_key: "change-me-generate-a-long-random-string"
+    log_level: info
+    error_reporting:
+      enabled: false
+    bootstrap_password: "change-me-initial-admin-password"
+    bootstrap_email: ""
+    postgresql:
+      password: "change-me-pg-authentik-password"
+
+  server:
+    replicas: 1
+
+  worker:
+    replicas: 1
+
+  postgresql:
+    enabled: true
+    auth:
+      password: "change-me-pg-authentik-password"
+    primary:
+      persistence:
+        storageClass: longhorn
+        size: 2Gi
+
+# ── Gateway route for the authentik UI ──────────────────────────────
+gatewayRoute:
+  enabled: true
+  hostname: "authentik.local"
+  gateway:
+    name: public-gateway
+    namespace: envoy-gateway
+  pathPrefix: /
+
+# ── ReferenceGrant for cross-namespace ext-auth ─────────────────────
+referenceGrant:
+  enabled: true
+  allowedNamespaces:
+    - todo
+    - longhorn

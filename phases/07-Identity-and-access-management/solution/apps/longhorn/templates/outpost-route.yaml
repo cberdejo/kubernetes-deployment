@@ -1,0 +1,26 @@
+{{- if .Values.auth.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: longhorn-outpost-callback
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.gatewayRoute.gateway.name }}
+      namespace: {{ .Values.gatewayRoute.gateway.namespace }}
+  {{- if .Values.gatewayRoute.hostname }}
+  hostnames:
+    - {{ .Values.gatewayRoute.hostname | quote }}
+  {{- end }}
+  rules:
+    - backendRefs:
+        - kind: Service
+          name: {{ .Values.auth.backend.serviceName }}
+          namespace: {{ .Values.auth.backend.namespace }}
+          port: {{ .Values.auth.backend.port }}
+      matches:
+        - path:
+            type: PathPrefix
+            value: /outpost.goauthentik.io/
+{{- end }}
