@@ -13,6 +13,8 @@ spec:
       name: {{ include "todo-app.fullname" . }}-frontend
   extAuth:
     failOpen: false
+    headersToExtAuth:
+      {{- toYaml .Values.frontend.auth.headersToExtAuth | nindent 6 }}
     http:
       backendRefs:
         - group: ""
