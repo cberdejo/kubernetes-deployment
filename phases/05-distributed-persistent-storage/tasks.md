@@ -85,7 +85,6 @@ apps/longhorn/
 ├── values/
 │   └── prod-values.yaml
 └── templates/
-    ├── namespace.yaml
     └── route.yaml
 ```
 
@@ -123,11 +122,12 @@ gatewayRoute:
   pathPrefix: /
 ```
 
-**`apps/longhorn/templates/namespace.yaml`**
+**Namespace with Pod Security Admission labels**
 
-Longhorn DaemonSet pods need `privileged` access to mount block devices. Pod Security Admission (PSA) labels on the namespace allow this — without them Kubernetes blocks pod startup.
+Longhorn DaemonSet pods need `privileged` access to mount block devices. Pod Security Admission (PSA) labels on the namespace allow this — without them Kubernetes blocks pod startup. Create the namespace before installing the chart:
 
-```yaml
+```bash
+kubectl apply -f - <<'EOF'
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -139,7 +139,10 @@ metadata:
     pod-security.kubernetes.io/audit-version: latest
     pod-security.kubernetes.io/warn: privileged
     pod-security.kubernetes.io/warn-version: latest
+EOF
 ```
+
+The solution's `bootstrap.sh` handles this automatically. The Longhorn wrapper chart does not manage namespace creation — it is left to the bootstrap or the operator.
 
 **`apps/longhorn/templates/route.yaml`**
 
@@ -220,7 +223,7 @@ The chart creates `todo-db-secret` with a `pre-install,pre-upgrade` Helm hook wh
 
 Starting from the canonical `application/chart`, make the following changes.
 
-### 5a — Add the PVC template
+### 4a — Add the PVC template
 
 Create `application/chart/templates/database/postgres-pvc.yaml`:
 
@@ -243,7 +246,7 @@ spec:
 {{- end }}
 ```
 
-### 5b — Mount the PVC in the PostgreSQL deployment
+### 4b — Mount the PVC in the PostgreSQL deployment
 
 In `application/chart/templates/database/postgres-deployment.yaml`, add the `volumeMounts` and `volumes` blocks inside the container spec (guarded by the `persistence.enabled` flag):
 
@@ -276,7 +279,7 @@ spec:
     type: Recreate
 ```
 
-### 5c — Add persistence values
+### 4c — Add persistence values
 
 In `solution/apps/todo-app/values/prod-values.yaml`, keep the Phase 05 deployment values. This file is complete enough to install the canonical chart from Docker Hub OCI, while disabling Gateway routing until Phase 06:
 
@@ -297,7 +300,22 @@ postgres:
 
 ---
 
-## Step 6 — Publish app images to Docker Hub
+## Step 5 — Deploy the todo-app
+
+Deploy the canonical chart from the local repository:
+
+```bash
+helm upgrade --install my-app ../../../application/chart \
+  -f ./apps/todo-app/values/prod-values.yaml \
+  -n todo \
+  --create-namespace
+```
+
+Or run `bootstrap/bootstrap.sh`, which installs Longhorn and deploys the chart in one step.
+
+### (Optional) Publish app images and chart to Docker Hub
+
+If you want to practice the OCI workflow (the real deploy path starts in Phase 06), build and push your images first:
 
 ```bash
 export DOCKERHUB_USER="<your-dockerhub-user>"
@@ -317,24 +335,24 @@ docker build \
 docker push docker.io/${DOCKERHUB_USER}/todo-frontend:${IMAGE_TAG}
 ```
 
-The bootstrap script overrides the image repositories from `.env`, so you do not need to commit your Docker Hub username into the values file.
-
----
-
-## Step 7 — Deploy the todo-app
+Then deploy from OCI instead of the local chart:
 
 ```bash
 helm upgrade --install my-app \
   oci://registry-1.docker.io/<dockerhub-user>/todo-app \
   --version 0.1.0 \
   -f ./apps/todo-app/values/prod-values.yaml \
+  --set frontend.image.repository=docker.io/<dockerhub-user>/todo-frontend \
+  --set backend.image.repository=docker.io/<dockerhub-user>/todo-backend \
   -n todo \
   --create-namespace
 ```
 
+The bootstrap script overrides the image repositories from `.env`, so you do not need to commit your Docker Hub username into the values file. Set `TODO_APP_CHART=oci://...` in `.env` to switch from local to OCI.
+
 ---
 
-## Step 8 — Verify
+## Step 6 — Verify
 
 ```bash
 # PVC should be Bound to a Longhorn volume
