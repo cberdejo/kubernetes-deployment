@@ -11,6 +11,7 @@
 ![Sealed Secrets](https://img.shields.io/badge/Sealed%20Secrets-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Envoy Gateway](https://img.shields.io/badge/Envoy%20Gateway-AC6199?style=for-the-badge&logo=envoyproxy&logoColor=white)
 ![Longhorn](https://img.shields.io/badge/Longhorn-5E9CA0?style=for-the-badge&logo=rancher&logoColor=white)
+![Authentik](https://img.shields.io/badge/Authentik-FD4B2D?style=for-the-badge&logo=authentik&logoColor=white)
 
 This section of the repository gathers my hands-on Kubernetes learning path in a practical, progressive way. The goal is to make each phase useful both for my own review and for anyone who wants to learn by following real examples.
 
@@ -43,6 +44,7 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 04](/phases/04-secure-secrets-managment/)| Secure application secrets with Sealed Secrets. Learn encryption workflow, Helm integration, and GitOps-friendly secret handling in Kubernetes.       |
 | [Phase 05](/phases/05-distributed-persistent-storage/)| Replace local storage with Longhorn distributed block storage. Learn PV/PVC/StorageClass, CSI drivers, volume replication, and data persistence across node restarts and rescheduling. |
 | [Phase 06](/phases/06-routing-and-traffic-exposure/)| Expose services through managed HTTPS routing. Learn Envoy Gateway, Gateway API, cert-manager, MetalLB, domain-based routing. |
+| [Phase 07](/phases/07-Identity-and-access-management/)| Centralize authentication with authentik. Learn forward-auth with Envoy Gateway, Proxy Providers, SSO, user and group management, and identity-aware access control for applications and platform UIs. |
 
 ## Recommended Lab Environment
 
