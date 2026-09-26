@@ -8,7 +8,7 @@ Deploy and operate real-world applications using:
 
 - Kubernetes
 - Helm
-- Argo CD (GitOps)
+- Flux CD (GitOps)
 - Harbor (private container registry)
 - Prometheus + Grafana + Loki + Alloy (observability)
 - Sealed Secrets (secure secret management)
@@ -215,7 +215,7 @@ Build, store, and pull private images reliably from an internal registry.
 
 **Technologies**
 
-- Argo CD
+- Flux CD
 - Git (GitHub/GitLab)
 
 **Expected Outcome**

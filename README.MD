@@ -3,7 +3,7 @@
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
-![Argo CD](https://img.shields.io/badge/Argo%20CD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)
+![Flux CD](https://img.shields.io/badge/Flux%20CD-5468FF?style=for-the-badge&logo=flux&logoColor=white)
 ![GitOps](https://img.shields.io/badge/GitOps-222222?style=for-the-badge&logo=git&logoColor=white)
 ![Harbor](https://img.shields.io/badge/Harbor-60B932?style=for-the-badge&logo=harbor&logoColor=white)
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
@@ -19,7 +19,7 @@ This project is focused on real-world application architecture and operations, c
 
 - **Kubernetes** for orchestration
 - **Helm** for packaging and deploying applications
-- **Argo CD** for GitOps-based deployment automation
+- **Flux CD** for GitOps-based deployment automation
 - **Harbor** as a private container registry
 - **Prometheus** and **Grafana** for monitoring and observability
 - **Sealed Secrets** for secure secret management in Kubernetes
