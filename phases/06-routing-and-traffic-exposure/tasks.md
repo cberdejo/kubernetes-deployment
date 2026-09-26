@@ -666,15 +666,6 @@ curl -I --cacert homelab-ca.crt https://todo.local
 
 ---
 
-## Further reading
-
-- [Kubernetes Gateway API documentation](https://gateway-api.sigs.k8s.io/)
-- [Envoy Gateway documentation](https://gateway.envoyproxy.io/docs/)
-- [MetalLB documentation](https://metallb.universe.tf/)
-- [cert-manager documentation](https://cert-manager.io/docs/)
-
----
-
 ## Success criteria
 
 - `apps/metallb/` wrapper chart installed; `IPAddressPool` exists and MetalLB pods are Running

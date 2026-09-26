@@ -654,16 +654,6 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ---
 
-## Further reading
-
-- [authentik documentation](https://goauthentik.io/docs/)
-- [authentik Proxy Provider — Forward auth](https://goauthentik.io/docs/providers/proxy/forward_auth)
-- [Envoy Gateway SecurityPolicy — ExtAuth](https://gateway.envoyproxy.io/docs/tasks/security/ext-auth/)
-- [Gateway API ReferenceGrant](https://gateway-api.sigs.k8s.io/api-types/referencegrant/)
-- [Kubernetes Gateway API — Route precedence](https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRoute)
-
----
-
 ## Success criteria
 
 - `apps/authentik/` wrapper chart installed; server, worker, and PostgreSQL pods are Running

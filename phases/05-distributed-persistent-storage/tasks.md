@@ -407,14 +407,6 @@ Set a new `POSTGRES_PASSWORD` in `bootstrap/.env` before the first install if yo
 
 ---
 
-## Further reading
-
-- [Longhorn documentation](https://longhorn.io/docs/latest/)
-- [CSI specification](https://github.com/container-storage-interface/spec)
-- [Kubernetes storage documentation](https://kubernetes.io/docs/concepts/storage/)
-
----
-
 ## Success criteria
 
 
