@@ -1,0 +1,8 @@
+apiVersion: v2
+name: harbor
+description: Harbor private container registry (wrapper chart)
+version: 0.1.0
+dependencies:
+  - name: harbor
+    version: 1.19.2
+    repository: https://helm.goharbor.io

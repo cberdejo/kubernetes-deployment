@@ -1,0 +1,59 @@
+harbor:
+  expose:
+    type: clusterIP
+    tls:
+      enabled: false
+    clusterIP:
+      name: harbor
+      ports:
+        httpPort: 80
+
+  externalURL: https://harbor.local
+
+  harborAdminPassword: "change-me-via-set-string"
+  secretKey: "change-me-16char"
+
+  persistence:
+    enabled: true
+    persistentVolumeClaim:
+      registry:
+        storageClass: longhorn
+        size: 5Gi
+      jobservice:
+        jobLog:
+          storageClass: longhorn
+          size: 1Gi
+      database:
+        storageClass: longhorn
+        size: 1Gi
+      redis:
+        storageClass: longhorn
+        size: 1Gi
+      trivy:
+        storageClass: longhorn
+        size: 2Gi
+
+  portal:
+    replicas: 1
+  core:
+    replicas: 1
+  jobservice:
+    replicas: 1
+  registry:
+    replicas: 1
+  nginx:
+    replicas: 1
+  trivy:
+    enabled: false
+
+  logLevel: warning
+
+gatewayRoute:
+  enabled: true
+  hostname: "harbor.local"
+  gateway:
+    name: public-gateway
+    namespace: envoy-gateway
+  pathPrefix: /
+  backendService: harbor
+  backendPort: 80

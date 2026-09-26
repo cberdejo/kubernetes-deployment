@@ -1,0 +1,21 @@
+{{- if .Values.gatewayRoute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: harbor-ui
+spec:
+  hostnames:
+    - {{ .Values.gatewayRoute.hostname | quote }}
+  parentRefs:
+    - name: {{ .Values.gatewayRoute.gateway.name }}
+      namespace: {{ .Values.gatewayRoute.gateway.namespace }}
+      sectionName: https
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gatewayRoute.pathPrefix }}
+      backendRefs:
+        - name: {{ .Values.gatewayRoute.backendService }}
+          port: {{ .Values.gatewayRoute.backendPort }}
+{{- end }}
