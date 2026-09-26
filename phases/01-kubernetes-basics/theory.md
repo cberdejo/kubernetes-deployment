@@ -331,3 +331,10 @@ kubectl apply -f deployment.yaml
 ```
 
 > **Best practice:** Always use the declarative approach. YAML files can be version-controlled, reviewed, and reproduced.
+
+---
+
+## Further Reading
+
+- **[Kubernetes documentation](https://kubernetes.io/docs/home/)** — official reference for all Kubernetes concepts, APIs, and operations
+- **[Kubernetes Deployment Antipatterns – part 1](https://codefresh.io/blog/kubernetes-antipatterns-1/)** — common mistakes and bad practices to avoid when working with Kubernetes deployments

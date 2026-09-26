@@ -45,6 +45,7 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 05](/phases/05-distributed-persistent-storage/)| Replace local storage with Longhorn distributed block storage. Learn PV/PVC/StorageClass, CSI drivers, volume replication, and data persistence across node restarts and rescheduling. |
 | [Phase 06](/phases/06-routing-and-traffic-exposure/)| Expose services through managed HTTPS routing. Learn Envoy Gateway, Gateway API, cert-manager, MetalLB, domain-based routing. |
 | [Phase 07](/phases/07-Identity-and-access-management/)| Centralize authentication with authentik. Learn forward-auth with Envoy Gateway, Proxy Providers, SSO, user and group management, and identity-aware access control for applications and platform UIs. |
+| [Phase 08](/phases/08-private-container-registry/)| Deploy Harbor as a private container registry. Push and pull application images with version control, publish Helm charts via OCI, and configure k3s to trust the internal registry. |
 
 ## Recommended Lab Environment
 
@@ -59,24 +60,6 @@ For the next stages, it is better to move to more realistic alternatives such as
 - **k3s** on VMs or lightweight servers, if you want a simpler but realistic multi-node cluster that is easier to bootstrap and maintain.
 - **Managed Kubernetes** such as **EKS**, **GKE**, or **AKS**, if you want to practice with cloud-native workflows and understand how Kubernetes is typically consumed in real companies.
 
-## Interesting Lectures
-[Kubernetes docs](https://kubernetes.io/docs/home/)
-
-[Kubernetes Deployment Antipatterns – part 1](https://codefresh.io/blog/kubernetes-antipatterns-1/)
-
-[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)
-
-[Helms Resources](https://github.com/cdwv/awesome-helm)
-
-[Kubernetes Secrets Management: Vault vs Sealed Secrets vs External Secrets (2025)](https://atmosly.com/blog/kubernetes-secrets-management-vault-vs-sealed-secrets-vs-external-secrets-2025)
-
-[How to Structure Your Argo CD Repositories Using Application Sets](https://codefresh.io/blog/how-to-structure-your-argo-cd-repositories-using-application-sets/)
-
-[How to Model Your GitOps Environments and Promote Releases between Them](https://codefresh.io/blog/how-to-model-your-gitops-environments-and-promote-releases-between-them/)
-
-[What is Longhorn](https://longhorn.io/docs/latest/what-is-longhorn/)
-
-[Kubernetes Persistent Volumes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
 
 ## Special Thanks
 Special Thanks to [jozayas](https://github.com/jozayas) who helped me to understand some core concepts and sent me some cool documentation and info.

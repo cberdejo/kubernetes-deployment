@@ -113,3 +113,10 @@ Instead of running `kubectl apply -f` multiple times, your deployment process be
 
 **Preparing for the future:**
 Mastering Helm now is strictly necessary for the upcoming phases. The next tools in your roadmap (Longhorn, Envoy Gateway, Harbor, Prometheus) are all industry-standard applications that are officially distributed and installed **exclusively via Helm Charts**.
+
+---
+
+## Further Reading
+
+- **[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)** — step-by-step tutorial for building a Helm chart from scratch
+- **[Awesome Helm](https://github.com/cdwv/awesome-helm)** — curated list of Helm resources, tools, plugins, and community charts
