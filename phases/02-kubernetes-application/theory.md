@@ -1,4 +1,4 @@
-## Phase 02 — Kubernetes Application 
+## Phase 02 - Kubernetes Application 
 
 The goal of this phase is to **deploy the** [application](../../application) **with Kubernetes**, gaining an understanding of the essential resources needed for a typical web app (frontend + backend + database) to work properly inside a Kubernetes cluster.
 
@@ -59,7 +59,7 @@ A **Secret** stores **sensitive data**:
 By default in Kubernetes:
 
 - Data in Secrets is **base64-encoded** (not encrypted, just encoded).
-- The cluster can integrate with stronger solutions (e.g., Sealed Secrets, Vault)—we'll see this in later phases.
+- The cluster can integrate with stronger solutions (e.g., Sealed Secrets, Vault), we'll see this in later phases.
 
 Typical usage:
 
@@ -80,8 +80,8 @@ Pods are ephemeral: if a Pod is killed and recreated, **the container's local fi
 
 To keep data persistent (e.g., database data), you need:
 
-- a **PersistentVolume (PV)**—cluster resource representing actual storage (local disk, NFS, cloud disk, etc.),
-- a **PersistentVolumeClaim (PVC)**—a Pod's request to claim persistent storage.
+- a **PersistentVolume (PV)**, cluster resource representing actual storage (local disk, NFS, cloud disk, etc.),
+- a **PersistentVolumeClaim (PVC)**, a Pod's request to claim persistent storage.
 
 In this phase, we'll mostly work with **PVCs**:
 

@@ -1,4 +1,4 @@
-# Phase 00 — Tasks: Local Docker Compose
+# Phase 00 - Tasks: Local Docker Compose
 
 In this phase you will build the containerized version of the application from scratch: write the Dockerfiles, configure Docker Compose, and verify that the full stack works locally.
 
@@ -23,7 +23,7 @@ I recommend checking off each task as you complete it in this file.
    - Check `src/App.jsx` for how the frontend calls the API.
 
 3. Identify the database requirements:
-   - PostgreSQL is used. No custom image is needed — the official `postgres:15` image is sufficient.
+   - PostgreSQL is used. No custom image is needed, the official `postgres:15` image is sufficient.
 
 ### Questions
 
@@ -43,18 +43,18 @@ I recommend checking off each task as you complete it in this file.
 
 2. Design three stages:
 
-   **Stage 1 — Base:**
+   **Stage 1 - Base:**
    - Use `node:20-alpine` as the base image.
    - Set the working directory to `/app`.
    - Copy `package.json` and `package-lock.json`.
 
-   **Stage 2 — Build:**
+   **Stage 2 - Build:**
    - Start from the base stage.
    - Install all dependencies (including dev) with `npm ci`.
    - Copy `tsconfig.json` and `src/`.
    - Run `npm run build` to compile TypeScript to JavaScript.
 
-   **Stage 3 — Production runtime:**
+   **Stage 3 - Production runtime:**
    - Start fresh from `node:20-alpine` (not from the build stage).
    - Set `NODE_ENV=production`.
    - Copy `package.json` and `package-lock.json`, then run `npm ci --omit=dev`.
@@ -102,14 +102,14 @@ I recommend checking off each task as you complete it in this file.
 
 2. Design two stages:
 
-   **Stage 1 — Build:**
+   **Stage 1 - Build:**
    - Use `node:20-alpine` as the base image.
    - Accept a build argument `VITE_API_URL` and set it as an environment variable (Vite requires `VITE_`-prefixed env vars to be present during build).
    - Copy dependency files and run `npm ci`.
    - Copy the rest of the source code.
    - Run `npm run build` to produce static files.
 
-   **Stage 2 — Production runtime:**
+   **Stage 2 - Production runtime:**
    - Use `caddy:2-alpine` as the base image (not Node.js).
    - Copy the built static files from stage 1 into Caddy's serve directory (`/usr/share/caddy`).
    - Copy the `Caddyfile` into `/etc/caddy/Caddyfile`.
@@ -153,7 +153,7 @@ I recommend checking off each task as you complete it in this file.
 ### Expected result
 
 - The image builds without errors.
-- The final image uses Caddy (not Node.js) — check with `docker inspect todo-frontend:dev | grep -i caddy`.
+- The final image uses Caddy (not Node.js), check with `docker inspect todo-frontend:dev | grep -i caddy`.
 - The image does not contain `node_modules` or source code.
 
 ### Questions
@@ -184,9 +184,9 @@ I recommend checking off each task as you complete it in this file.
    ```
 
 2. Understand each variable:
-   - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` — consumed by the official PostgreSQL image to initialize the database on first start.
-   - `DATABASE_URI` — consumed by the backend to connect to PostgreSQL. Note the hostname `postgres` — this is the service name in Docker Compose.
-   - `BACKEND_HOST`, `BACKEND_PORT` — the backend binds to this address and port.
+   - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, consumed by the official PostgreSQL image to initialize the database on first start.
+   - `DATABASE_URI`, consumed by the backend to connect to PostgreSQL. Note the hostname `postgres`, this is the service name in Docker Compose.
+   - `BACKEND_HOST`, `BACKEND_PORT`, the backend binds to this address and port.
 
 ### Questions
 
@@ -231,7 +231,7 @@ I recommend checking off each task as you complete it in this file.
 ### Expected result
 
 - The file has three services: `postgres`, `backend`, `frontend`.
-- Only `frontend` has a `ports` mapping — backend and postgres communicate internally.
+- Only `frontend` has a `ports` mapping, backend and postgres communicate internally.
 - PostgreSQL uses a named volume for data persistence.
 - The startup order is: postgres → backend → frontend.
 
@@ -254,7 +254,7 @@ I recommend checking off each task as you complete it in this file.
    ```
 
 3. Wait for the health check and verify:
-   - Open `http://localhost:8080` in your browser — the frontend should load.
+   - Open `http://localhost:8080` in your browser, the frontend should load.
    - Create a note through the UI.
    - Check the terminal output for backend logs confirming the database connection.
 
@@ -403,7 +403,7 @@ I recommend checking off each task as you complete it in this file.
    docker compose up -d
    ```
 
-6. Open the frontend — verify the notes are still there.
+6. Open the frontend, verify the notes are still there.
 
 7. Now stop and remove containers **including** volumes:
    ```bash
@@ -415,7 +415,7 @@ I recommend checking off each task as you complete it in this file.
    docker compose up -d
    ```
 
-9. Open the frontend — the notes should be gone.
+9. Open the frontend, the notes should be gone.
 
 ### Expected result
 
@@ -437,26 +437,7 @@ I recommend checking off each task as you complete it in this file.
 
 1. Draw the application flow (on paper or digitally):
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                   Docker Compose Network                  │
-│                                                          │
-│  ┌────────────┐    ┌────────────┐    ┌────────────────┐  │
-│  │  Frontend   │    │  Backend   │    │   PostgreSQL   │  │
-│  │  (Caddy)    │───▶│  (Node.js) │───▶│   (postgres)   │  │
-│  │  port 80    │    │  port 9090 │    │   port 5432    │  │
-│  └──────┬─────┘    └────────────┘    └───────┬────────┘  │
-│         │                                     │          │
-│         │                              ┌──────┴───────┐  │
-│         │                              │ postgres_data │  │
-│         │                              │   (volume)    │  │
-│         │                              └──────────────┘  │
-└─────────┼────────────────────────────────────────────────┘
-          │ port mapping 8080:80
-          ▼
-      Host machine
-    localhost:8080
-```
+All three services live inside the Docker Compose network. The Frontend (Caddy, port 80) forwards requests to the Backend (Node.js, port 9090), which connects to PostgreSQL (port 5432). PostgreSQL stores its data in the `postgres_data` named volume. The Frontend is the only service exposed to the host machine through a port mapping of 8080:80, making the application accessible at `localhost:8080`.
 
 2. For each component, identify:
    - Who calls it?

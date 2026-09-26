@@ -1,4 +1,4 @@
-# Phase 01 — Tasks: Kubernetes Basics
+# Phase 01 - Tasks: Kubernetes Basics
 
 ## Task 1: Set up Minikube
 
@@ -124,7 +124,7 @@ kubectl get replicasets
 kubectl get pods
 ```
 
-4. Observe self-healing — delete one Pod and watch Kubernetes recreate it:
+4. Observe self-healing, delete one Pod and watch Kubernetes recreate it:
 
 ```bash
 kubectl get pods

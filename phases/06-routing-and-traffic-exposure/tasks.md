@@ -1,4 +1,4 @@
-# Phase 06 — Routing and Traffic Exposure with Envoy Gateway
+# Phase 06 - Routing and Traffic Exposure with Envoy Gateway
 
 This phase centralizes all external traffic through a single, policy-controlled entry point. You will install MetalLB to give the cluster a real external IP on bare metal, install Envoy Gateway to implement the Kubernetes Gateway API, add HTTPRoutes for the todo-app and Longhorn UI, then complete the setup with cert-manager for automatic TLS.
 
@@ -38,7 +38,7 @@ The key idea: **one IP, one port, all services separated by hostname**. MetalLB 
 
 ---
 
-## Step 1 — Prerequisites
+## Step 1 - Prerequisites
 
 ```bash
 # Cluster nodes Ready
@@ -62,19 +62,11 @@ Write down the range, you will use it in Step 2.
 
 ---
 
-## Step 2 — Install MetalLB
+## Step 2 - Install MetalLB
 
 Create the following directory structure:
 
-```
-apps/metallb/
-├── Chart.yaml
-├── values/
-│   └── prod-values.yaml
-└── templates/
-    ├── ipaddresspool.yaml
-    └── l2advertisement.yaml
-```
+The `apps/metallb/` directory contains a `Chart.yaml` at the root, a `values/` folder with `prod-values.yaml`, and a `templates/` folder with two templates: `ipaddresspool.yaml` and `l2advertisement.yaml`.
 
 **`apps/metallb/Chart.yaml`**
 
@@ -158,25 +150,18 @@ MetalLB is ready. Any `LoadBalancer` service you create from this point will rec
 
 ---
 
-## Step 3 — Install Envoy Gateway
+## Step 3 - Install Envoy Gateway
 
 Create the following directory structure:
 
-```
-apps/envoy-gateway/
-├── Chart.yaml
-├── values/
-│   └── prod-values.yaml
-└── templates/
-    └── gateway.yaml
-```
+The `apps/envoy-gateway/` directory contains a `Chart.yaml` at the root, a `values/` folder with `prod-values.yaml`, and a `templates/` folder with `gateway.yaml`.
 
 **`apps/envoy-gateway/Chart.yaml`**
 
 ```yaml
 apiVersion: v2
 name: cluster-envoy-gateway
-description: Envoy Gateway — Kubernetes Gateway API implementation
+description: Envoy Gateway, Kubernetes Gateway API implementation
 type: application
 version: 1.0.0
 dependencies:
@@ -222,7 +207,7 @@ spec:
               expose-via-gateway: "true"
 ```
 
-> **Why `Selector` instead of `All`?** With `from: All` any namespace in the cluster can attach an HTTPRoute to this Gateway — a misconfigured or compromised namespace could start routing traffic through the public entry point. `Selector` restricts attachment to namespaces that carry a specific label (`expose-via-gateway: "true"`). Only `todo` and `longhorn` get that label, so they are the only namespaces that can expose services externally. Any other namespace is silently excluded regardless of what HTTPRoutes it creates. This is the recommended approach even in development clusters — it makes the access boundary explicit and visible.
+> **Why `Selector` instead of `All`?** With `from: All` any namespace in the cluster can attach an HTTPRoute to this Gateway, a misconfigured or compromised namespace could start routing traffic through the public entry point. `Selector` restricts attachment to namespaces that carry a specific label (`expose-via-gateway: "true"`). Only `todo` and `longhorn` get that label, so they are the only namespaces that can expose services externally. Any other namespace is silently excluded regardless of what HTTPRoutes it creates. This is the recommended approach even in development clusters, it makes the access boundary explicit and visible.
 
 **Install Envoy Gateway:**
 
@@ -250,7 +235,7 @@ Record that IP, you will add it to `/etc/hosts` in the next step.
 
 ---
 
-## Step 4 — Add the todo-app HTTPRoute
+## Step 4 - Add the todo-app HTTPRoute
 
 Because the Gateway uses `from: Selector`, the `todo` namespace must carry the `expose-via-gateway: "true"` label before any HTTPRoute inside it can attach:
 
@@ -258,7 +243,7 @@ Because the Gateway uses `from: Selector`, the `todo` namespace must carry the `
 kubectl label namespace todo expose-via-gateway=true
 ```
 
-The solution's `bootstrap.sh` creates namespaces with the label already applied. If you prefer a declarative approach, you can add a `Namespace` resource to your chart templates, but the canonical chart does not manage namespace creation — it is left to the bootstrap or the operator.
+The solution's `bootstrap.sh` creates namespaces with the label already applied. If you prefer a declarative approach, you can add a `Namespace` resource to your chart templates, but the canonical chart does not manage namespace creation, it is left to the bootstrap or the operator.
 
 In the canonical chart, create `application/chart/templates/frontend/route.yaml`:
 
@@ -286,7 +271,7 @@ spec:
 
 No hostname filter here, this route matches any request that no other HTTPRoute claims. The Longhorn route in the next step uses a hostname filter, so it wins over this one for `longhorn.local` traffic.
 
-> **Forward-auth is wired but disabled in this phase.** The canonical chart also ships `frontend/security-policy.yaml`, an Envoy Gateway `SecurityPolicy` that puts forward-auth (ext-auth) in front of this same HTTPRoute. It only renders when **both** `frontend.gatewayRoute.enabled` and `frontend.auth.enabled` are true. This phase keeps `frontend.auth.enabled: false`, so the route serves unauthenticated traffic — the SecurityPolicy is **prepared for Phase 07**, where authentik is added and `auth.enabled` is flipped to `true` to protect the frontend. Nothing about auth is exercised here; only the plain HTTPRoute is tested.
+> **Forward-auth is wired but disabled in this phase.** The canonical chart also ships `frontend/security-policy.yaml`, an Envoy Gateway `SecurityPolicy` that puts forward-auth (ext-auth) in front of this same HTTPRoute. It only renders when **both** `frontend.gatewayRoute.enabled` and `frontend.auth.enabled` are true. This phase keeps `frontend.auth.enabled: false`, so the route serves unauthenticated traffic, the SecurityPolicy is **prepared for Phase 07**, where authentik is added and `auth.enabled` is flipped to `true` to protect the frontend. Nothing about auth is exercised here; only the plain HTTPRoute is tested.
 
 **Redeploy the todo-app:**
 
@@ -342,11 +327,11 @@ Leaving `TODO_APP_CHART=local` (the default) keeps the phase self-contained.
 192.168.1.200  todo.local
 ```
 
-Open `http://todo.local` in your browser — the todo-app should load.
+Open `http://todo.local` in your browser, the todo-app should load.
 
 ---
 
-## Step 5 — Enable the Longhorn UI route
+## Step 5 - Enable the Longhorn UI route
 
 The `longhorn` namespace also needs the `expose-via-gateway: "true"` label:
 
@@ -392,29 +377,24 @@ kubectl describe httproute longhorn-ui -n longhorn
 # Status.Parents should show Accepted: True
 ```
 
-Open `http://longhorn.local`, the Longhorn UI should load. Open `http://todo.local` — the todo-app should still work.
+Open `http://longhorn.local`, the Longhorn UI should load. Open `http://todo.local`, the todo-app should still work.
 
 ---
 
-## Step 6 — Install cert-manager
+## Step 6 - Install cert-manager
 
-cert-manager is split into two separate Helm releases: the controller (which installs the CRDs and runs the cert-manager pods) and the issuers (which create `ClusterIssuer` and `Certificate` resources that depend on those CRDs). The issuers must be installed **after** the CRDs are established — bundling them into the same chart would fail because Helm would try to apply `ClusterIssuer` resources before the CRD is registered.
+cert-manager is split into two separate Helm releases: the controller (which installs the CRDs and runs the cert-manager pods) and the issuers (which create `ClusterIssuer` and `Certificate` resources that depend on those CRDs). The issuers must be installed **after** the CRDs are established, bundling them into the same chart would fail because Helm would try to apply `ClusterIssuer` resources before the CRD is registered.
 
-### 6a — Install the cert-manager controller
+### 6a - Install the cert-manager controller
 
-```
-apps/cert-manager/
-├── Chart.yaml
-└── values/
-    └── prod-values.yaml
-```
+The `apps/cert-manager/` directory contains a `Chart.yaml` at the root and a `values/` folder with `prod-values.yaml`.
 
 **`apps/cert-manager/Chart.yaml`**
 
 ```yaml
 apiVersion: v2
 name: cluster-cert-manager
-description: cert-manager — automatic TLS certificate management
+description: cert-manager, automatic TLS certificate management
 type: application
 version: 1.0.0
 dependencies:
@@ -444,16 +424,11 @@ helm upgrade --install cluster-cert-manager ./apps/cert-manager \
 kubectl rollout status deploy/cluster-cert-manager-cert-manager -n cert-manager
 ```
 
-### 6b — Install the CA issuers
+### 6b - Install the CA issuers
 
 Once the cert-manager CRDs are established, install the issuers as a separate chart:
 
-```
-apps/cert-manager-issuers/
-├── Chart.yaml
-└── templates/
-    └── selfsigned-cluster-issuer.yaml
-```
+The `apps/cert-manager-issuers/` directory contains a `Chart.yaml` at the root and a `templates/` folder with `selfsigned-cluster-issuer.yaml`.
 
 **`apps/cert-manager-issuers/Chart.yaml`**
 
@@ -470,7 +445,7 @@ For a homelab without a public domain, a self-signed CA is the right choice. You
 
 ```yaml
 ---
-# Step 1: bootstrap issuer — signs its own certificates to create the CA
+# Step 1: bootstrap issuer - signs its own certificates to create the CA
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -492,7 +467,7 @@ spec:
     name: selfsigned-root
     kind: ClusterIssuer
 ---
-# Step 3: cluster-wide issuer backed by the homelab CA — use this in Certificate resources
+# Step 3: cluster-wide issuer backed by the homelab CA - use this in Certificate resources
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -515,9 +490,9 @@ kubectl get clusterissuer
 
 ---
 
-## Step 7 — Add HTTPS to the Gateway
+## Step 7 - Add HTTPS to the Gateway
 
-### 7a — Request a certificate
+### 7a - Request a certificate
 
 Create `apps/envoy-gateway/templates/certificate.yaml`:
 
@@ -539,7 +514,7 @@ spec:
 
 cert-manager issues the certificate and writes it into `gateway-tls-secret` in the `envoy-gateway` namespace.
 
-### 7b — Add an HTTPS listener to the Gateway
+### 7b - Add an HTTPS listener to the Gateway
 
 Update `apps/envoy-gateway/templates/gateway.yaml` to add a second listener:
 
@@ -609,7 +584,7 @@ sudo security add-trusted-cert -d -r trustRoot homelab-ca.crt
 
 ---
 
-## Step 8 — Verify
+## Step 8 - Verify
 
 ```bash
 # All gateway-related pods running
@@ -642,27 +617,27 @@ curl -I --cacert homelab-ca.crt https://todo.local
 
 ## Troubleshooting checklist
 
-- `helm upgrade` fails with `no matches for kind "IPAddressPool"` — the `IPAddressPool` or `L2Advertisement` templates are missing the `helm.sh/hook` annotations; Helm tries to apply them before MetalLB's CRDs are registered
-- `kubectl get ipaddresspool -n metallb-system` shows nothing after install — hook annotations are correct but `--wait` was not used; the controller had not finished starting when the hooks ran; rerun `helm upgrade --install ... --wait`
-- `LoadBalancer` service in `envoy-gateway` stays `<pending>` — MetalLB is not installed, or the IP range overlaps with DHCP; check speaker logs: `kubectl logs -n metallb-system -l app.kubernetes.io/component=speaker`
-- `GatewayClass` not `Accepted` — Envoy Gateway control plane not running; check `kubectl logs deploy/envoy-gateway -n envoy-gateway`
-- HTTPRoute status shows `NotAllowedByListeners` — the namespace is missing the `expose-via-gateway: "true"` label; add it with `kubectl label namespace <ns> expose-via-gateway=true` and redeploy the chart
-- HTTPRoute status shows `NotResolvedRefs` — the backend Service name or port does not match what is deployed; `kubectl describe httproute <name> -n <ns>`
-- `http://todo.local` resolves but returns 404 — HTTPRoute is attached but the hostname or path does not match; check `kubectl get httproute -A -o yaml`
-- Certificate stuck in `False` — inspect with `kubectl describe certificate -n envoy-gateway` and `kubectl describe certificaterequest -n envoy-gateway`; common cause is missing CRDs or `ClusterIssuer` not Ready
-- Browser rejects HTTPS with self-signed warning — expected; import `homelab-ca.crt` into your browser trust store or use `curl -k` for quick testing
-- `helm upgrade` fails pulling `oci://registry-1.docker.io/<user>/todo-app` — publish the chart with `./scripts/publish-chart.sh`, confirm `CHART_VERSION` matches `application/chart/Chart.yaml`, and run `helm registry login` for private repositories
+- `helm upgrade` fails with `no matches for kind "IPAddressPool"`, the `IPAddressPool` or `L2Advertisement` templates are missing the `helm.sh/hook` annotations; Helm tries to apply them before MetalLB's CRDs are registered
+- `kubectl get ipaddresspool -n metallb-system` shows nothing after install, hook annotations are correct but `--wait` was not used; the controller had not finished starting when the hooks ran; rerun `helm upgrade --install ... --wait`
+- `LoadBalancer` service in `envoy-gateway` stays `<pending>`, MetalLB is not installed, or the IP range overlaps with DHCP; check speaker logs: `kubectl logs -n metallb-system -l app.kubernetes.io/component=speaker`
+- `GatewayClass` not `Accepted`, Envoy Gateway control plane not running; check `kubectl logs deploy/envoy-gateway -n envoy-gateway`
+- HTTPRoute status shows `NotAllowedByListeners`, the namespace is missing the `expose-via-gateway: "true"` label; add it with `kubectl label namespace <ns> expose-via-gateway=true` and redeploy the chart
+- HTTPRoute status shows `NotResolvedRefs`, the backend Service name or port does not match what is deployed; `kubectl describe httproute <name> -n <ns>`
+- `http://todo.local` resolves but returns 404, HTTPRoute is attached but the hostname or path does not match; check `kubectl get httproute -A -o yaml`
+- Certificate stuck in `False`, inspect with `kubectl describe certificate -n envoy-gateway` and `kubectl describe certificaterequest -n envoy-gateway`; common cause is missing CRDs or `ClusterIssuer` not Ready
+- Browser rejects HTTPS with self-signed warning, expected; import `homelab-ca.crt` into your browser trust store or use `curl -k` for quick testing
+- `helm upgrade` fails pulling `oci://registry-1.docker.io/<user>/todo-app`, publish the chart with `./scripts/publish-chart.sh`, confirm `CHART_VERSION` matches `application/chart/Chart.yaml`, and run `helm registry login` for private repositories
 
 ---
 
 ## Additional exercises
 
-1. **Route precedence test** — add a second HTTPRoute in the `todo` namespace that matches `todo.local` with an exact path `/test`. Confirm it wins over the prefix `/` route for that path only.
-2. **Hostname isolation** — add a third fake service and HTTPRoute for `other.local`. Confirm `http://todo.local` and `http://other.local` reach different backends without touching each other's routes.
-3. **Certificate renewal simulation** — patch the `Certificate` resource to set a very short `duration` and `renewBefore`. Watch cert-manager automatically renew it without any manual intervention.
-4. **BGP exploration** — if you have a router that supports BGP (e.g., VyOS or OPNsense), switch MetalLB to BGP mode and observe how routes appear in the router's routing table.
-5. **Label removal test** — remove the `expose-via-gateway: "true"` label from the `longhorn` namespace (`kubectl label namespace longhorn expose-via-gateway-`). Watch the Longhorn HTTPRoute transition to `NotAllowedByListeners`. Re-add the label and confirm recovery without redeploying anything.
-6. **Let's Encrypt staging** — if you have a public domain, create a second `ClusterIssuer` pointing at the Let's Encrypt staging endpoint and issue a certificate. Observe the ACME challenge flow in the cert-manager logs.
+1. **Route precedence test**, add a second HTTPRoute in the `todo` namespace that matches `todo.local` with an exact path `/test`. Confirm it wins over the prefix `/` route for that path only.
+2. **Hostname isolation**, add a third fake service and HTTPRoute for `other.local`. Confirm `http://todo.local` and `http://other.local` reach different backends without touching each other's routes.
+3. **Certificate renewal simulation**, patch the `Certificate` resource to set a very short `duration` and `renewBefore`. Watch cert-manager automatically renew it without any manual intervention.
+4. **BGP exploration**, if you have a router that supports BGP (e.g., VyOS or OPNsense), switch MetalLB to BGP mode and observe how routes appear in the router's routing table.
+5. **Label removal test**, remove the `expose-via-gateway: "true"` label from the `longhorn` namespace (`kubectl label namespace longhorn expose-via-gateway-`). Watch the Longhorn HTTPRoute transition to `NotAllowedByListeners`. Re-add the label and confirm recovery without redeploying anything.
+6. **Let's Encrypt staging**, if you have a public domain, create a second `ClusterIssuer` pointing at the Let's Encrypt staging endpoint and issue a certificate. Observe the ACME challenge flow in the cert-manager logs.
 
 ---
 

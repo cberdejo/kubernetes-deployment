@@ -1,4 +1,4 @@
-# Phase 04 — Secure Management & Templating
+# Phase 04 - Secure Management & Templating
 
 Choosing the right secret management tool is critical for the GitOps workflow. The current three heavyweights: **Sealed Secrets**, **External Secrets Operator (ESO)**, and **HashiCorp Vault**.
 

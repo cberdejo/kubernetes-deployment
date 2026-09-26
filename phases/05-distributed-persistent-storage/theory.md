@@ -2,9 +2,9 @@
 
 Choosing the right storage backend for Kubernetes is not optional when you run stateful workloads. Below is a deep dive into the three most common approaches for persistent storage in a self-hosted cluster: **Longhorn**, **Rook/Ceph**, and **NFS/hostPath**, what they are, how they work, and when to pick each.
 
-This is also the phase where **Minikube stops being enough** as the main lab environment. Up to Phase 04 a local single-node cluster is fine, but distributed persistent storage is exactly where you need a real cluster: Longhorn's V1 data engine requires `iscsiadm` on every node, which Minikube does not expose. From this phase onwards the recommended environment is **k3s** on your own Linux machine (see [docs/cluster-setup/k3s.md](../../docs/cluster-setup/k3s.md)) — fast to stand up and gives you full control over the nodes.
+This is also the phase where **Minikube stops being enough** as the main lab environment. Up to Phase 04 a local single-node cluster is fine, but distributed persistent storage is exactly where you need a real cluster: Longhorn's V1 data engine requires `iscsiadm` on every node, which Minikube does not expose. From this phase onwards the recommended environment is **k3s** on your own Linux machine (see [docs/cluster-setup/k3s.md](../../docs/cluster-setup/k3s.md)), fast to stand up and gives you full control over the nodes.
 
-A **single-node k3s** cluster is enough to learn the whole flow (dynamic PVCs, the CSI path, snapshots), but with one node Longhorn can only keep **one replica** of each volume — there is no second node to replicate to, so you get persistence but **not** real high availability. To see replication and failure domains for real, add worker nodes with `k3s agent` (join them to the server with its node token); Longhorn then schedules replicas across nodes and `Replica Count: 3` becomes meaningful. Talos Linux on VMs/bare metal, a homelab multi-node cluster, or a managed service (EKS/GKE/AKS) remain valid alternatives if you want to go further, but k3s is the single recommended path here.
+A **single-node k3s** cluster is enough to learn the whole flow (dynamic PVCs, the CSI path, snapshots), but with one node Longhorn can only keep **one replica** of each volume, there is no second node to replicate to, so you get persistence but **not** real high availability. To see replication and failure domains for real, add worker nodes with `k3s agent` (join them to the server with its node token); Longhorn then schedules replicas across nodes and `Replica Count: 3` becomes meaningful. Talos Linux on VMs/bare metal, a homelab multi-node cluster, or a managed service (EKS/GKE/AKS) remain valid alternatives if you want to go further, but k3s is the single recommended path here.
 
 **Core concepts to master in this phase:**
 - **PersistentVolume / PersistentVolumeClaim / StorageClass**, the Kubernetes storage API
@@ -73,11 +73,7 @@ NFS (Network File System) is a decades-old network protocol that lets multiple m
 
 **How it works:**
 
-```
-Pod A ──┐
-Pod B ──┼──→ PVC (RWX) → PV → NFS Server → /exports/data
-Pod C ──┘
-```
+Multiple Pods (A, B, C) all reference the same PVC with RWX access mode. That PVC is backed by a PV which points to an NFS server exporting a shared directory (e.g. `/exports/data`). Because the data lives on a network-accessible server rather than a local disk, any Pod on any node can mount and write to the same volume simultaneously.
 
 Unlike `hostPath`, the data lives on a dedicated server, so any node can reach it. This is what enables **ReadWriteMany (RWX)**,  multiple Pods on different nodes mounting the same volume simultaneously with read-write access.
 
@@ -206,18 +202,7 @@ Rook/Ceph is the right call when you own hardware, need multiple protocols (bloc
 
 ### Decision flowchart
 
-```
-Do you need shared RWX across many Pods?
-├── Yes, and simplicity matters → NFS
-├── Yes, and you're already using Ceph → CephFS
-└── No, block storage is fine →
-    Is this a production multi-node cluster?
-    ├── No (dev/Minikube) → hostPath
-    └── Yes →
-        Do you need multi-protocol (block + file + object)?
-        ├── Yes, and you have dedicated hardware + ops time → Rook/Ceph
-        └── No → Longhorn
-```
+Start by asking whether you need shared RWX access across many Pods. If yes and simplicity matters, choose NFS. If yes and you are already running Ceph, use CephFS. If you only need block storage, ask whether this is a production multi-node cluster. If not (e.g. dev or Minikube), hostPath is sufficient. If it is production, ask whether you need multi-protocol support (block, file, and object). If you do and you have dedicated hardware plus ops capacity, go with Rook/Ceph. Otherwise, Longhorn is the right fit.
 
 ---
 

@@ -1,4 +1,4 @@
-## Phase 02 — Kubernetes Application (Tasks)
+## Phase 02 - Kubernetes Application (Tasks)
 
 In this phase the [application](../../application/) will be **deployed with Kubernetes**, following small, verifiable steps. The goal is to learn how to create and manage Kubernetes resources (Deployments, Services, ConfigMaps, Secrets, PVCs) for a typical web app (frontend + backend + postgres).
 
@@ -6,7 +6,7 @@ I recommend checking off each task as you complete it in this file.
 
 ---
 
-### 1. Preparation — Namespace
+### 1. Preparation - Namespace
 
 - **1.1. Create a dedicated namespace**
   - Suggested file: `namespace.yaml`.
@@ -282,4 +282,4 @@ kubectl apply -f manifests/frontend/
 kubectl apply -R -f manifests/
 ```
 
-The `-R` flag makes it recursive, so it walks into subdirectories (`database/`, `backend/`, `frontend/`) and applies all `.yaml` files found. This is idempotent — running it again only updates resources that changed.
+The `-R` flag makes it recursive, so it walks into subdirectories (`database/`, `backend/`, `frontend/`) and applies all `.yaml` files found. This is idempotent, running it again only updates resources that changed.

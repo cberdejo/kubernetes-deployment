@@ -1,4 +1,4 @@
-# Phase 04 — Secure Secrets Management with Bitnami Sealed Secrets
+# Phase 04 - Secure Secrets Management with Bitnami Sealed Secrets
 
 This guide walks through installing Bitnami Sealed Secrets, encrypting your
 database credentials with `kubeseal`, and consuming them from the canonical
@@ -42,14 +42,14 @@ The canonical chart, deployed with postgres.existingSecret: todo-db-secret,
 consumes that Secret via envFrom (backend + postgres)
 ```
 
-The key idea: **encrypted blobs live in a standalone, committable manifest —
+The key idea: **encrypted blobs live in a standalone, committable manifest,
 never in `values.yaml`, and never copied into the app chart.** The app chart
 (`application/chart`) stays the single source of truth and only references the
 Secret by name. The plain credentials never leave your machine.
 
 ---
 
-## Step 1 — Prerequisites
+## Step 1 - Prerequisites
 
 Verify your tools before starting.
 
@@ -74,17 +74,13 @@ kubectl create namespace todo --dry-run=client -o yaml | kubectl apply -f -
 
 ---
 
-## Step 2 — Install the Sealed Secrets controller
+## Step 2 - Install the Sealed Secrets controller
 
 The controller runs inside the cluster and holds the private key used to decrypt your secrets.
 
 In production the controller itself is managed as code. The `sealed-secrets/` wrapper chart declares the dependency so the version is pinned and reproducible:
 
-```
-apps/sealed-secrets/
-├── Chart.yaml    ← declares bitnami-labs/sealed-secrets as a dependency
-└── values.yaml   ← fullnameOverride to keep the controller name stable
-```
+The `apps/sealed-secrets/` directory contains two files: `Chart.yaml`, which declares `bitnami-labs/sealed-secrets` as a dependency, and `values.yaml`, which sets `fullnameOverride` to keep the controller name stable.
 
 ```bash
 # Add the Sealed Secrets Helm repo (bitnami-labs org was renamed to bitnami; this is not bitnami/bitnami)
@@ -107,11 +103,11 @@ kubectl get crd | awk '/sealedsecrets/'
 # Expected output: sealedsecrets.bitnami.com
 ```
 
-> **Why a wrapper chart?** It pins the controller version in Git (`Chart.yaml`), lets you track upgrades via pull requests, and makes it reproducible across clusters — the same pattern you would use for Prometheus, Cert-Manager, or any cluster-level dependency.
+> **Why a wrapper chart?** It pins the controller version in Git (`Chart.yaml`), lets you track upgrades via pull requests, and makes it reproducible across clusters, the same pattern you would use for Prometheus, Cert-Manager, or any cluster-level dependency.
 
 ---
 
-## Step 3 — Seal your credentials (run once, repeat when rotating)
+## Step 3 - Seal your credentials (run once, repeat when rotating)
 
 This step produces the encrypted manifest you commit to Git. The bootstrap
 script automates exactly these commands in `bootstrap/seal-credentials.sh`;
@@ -124,7 +120,7 @@ kubeseal --fetch-cert \
   --controller-namespace kube-system \
   > /tmp/sealed-secrets-cert.pem
 
-# 2. Create a plain Secret manifest locally — NEVER commit this file
+# 2. Create a plain Secret manifest locally - NEVER commit this file
 kubectl create secret generic todo-db-secret \
   -n todo \
   --from-literal=POSTGRES_USER=admin \
@@ -142,7 +138,7 @@ kubeseal \
   < /tmp/todo-db-secret.yaml \
   > sealed/todo-db-sealedsecret.yaml
 
-# 4. Inspect the result — encrypted blobs under spec.encryptedData
+# 4. Inspect the result - encrypted blobs under spec.encryptedData
 cat sealed/todo-db-sealedsecret.yaml
 
 # 5. Delete the plain file immediately
@@ -155,7 +151,7 @@ matching private key.
 
 > **Why a standalone manifest, not a chart template?** A SealedSecret is a
 > cluster-specific infrastructure artefact, not application configuration. The
-> canonical chart deliberately does not carry it — keeping it out of the chart
+> canonical chart deliberately does not carry it, keeping it out of the chart
 > is what lets every phase consume the *same* chart. Production charts like
 > `ds-helmchart` go one step further and generate credentials in-cluster (the
 > bootstrap-hook pattern you adopt in Phase 05); SealedSecrets is the Git-based
@@ -163,14 +159,14 @@ matching private key.
 
 ---
 
-## Step 4 — Wire it into the canonical chart
+## Step 4 - Wire it into the canonical chart
 
 You do **not** copy any chart templates. The canonical chart already ships:
 
 - a `todo-app.databaseSecretName` helper in `_helpers.tpl` that returns
   `postgres.existingSecret` when set, otherwise `postgres.secretName`;
 - `envFrom: secretRef` on both the backend and Postgres deployments, pointed at
-  that helper — so both consume `todo-db-secret` as the single source of truth.
+  that helper, so both consume `todo-db-secret` as the single source of truth.
 
 The phase override `apps/todo-app/values/prod-values.yaml` sets:
 
@@ -197,7 +193,7 @@ kubectl get sealedsecret,secret todo-db-secret -n todo
 
 ---
 
-## Step 5 — Deploy
+## Step 5 - Deploy
 
 Deploy the canonical chart with the phase override:
 
@@ -210,12 +206,12 @@ helm upgrade --install my-app ../../../application/chart \
 ```
 
 Or run `bootstrap/bootstrap.sh`, which installs the controller, seals and
-applies the credentials, builds/pushes the images, and deploys — all from
+applies the credentials, builds/pushes the images, and deploys, all from
 `application/chart`.
 
 ---
 
-## Step 6 — Verify
+## Step 6 - Verify
 
 ```bash
 # Both the SealedSecret and the decrypted Secret should appear
@@ -266,7 +262,7 @@ Never seal secrets during `helm upgrade`. CI/CD should only ever apply encrypted
 
 ---
 
-## Beyond manual sealing — the bootstrap hook pattern
+## Beyond manual sealing - the bootstrap hook pattern
 
 Manual SealedSecrets are useful because they teach the full encryption flow: `kubeseal` encrypts with the controller's public key, Git stores only encrypted blobs, and the controller decrypts them inside the cluster. That model also has operational costs. Every credential rotation requires re-sealing and committing new blobs, the encrypted values only work with the controller that created the matching private key, and teams must keep the sealing workflow consistent across clusters.
 
@@ -280,18 +276,18 @@ SealedSecrets still matter for cases where secrets must be prepared before an ap
 
 These are optional but build real understanding of Sealed Secrets behavior.
 
-1. **Scope comparison** — seal a secret with `--scope strict`, then change its name or namespace and re-apply. Observe that decryption fails. Understand why `namespace-wide` is more flexible.
-2. **Tamper test** — change one character in an encrypted blob in `sealed/todo-db-sealedsecret.yaml`, apply, and observe the controller error.
-3. **Wrong-cluster test** — apply the same `SealedSecret` in a different cluster. It cannot decrypt because the key pair is different.
-4. **Controller downtime** — scale the controller to 0 replicas, apply a new `SealedSecret`, then scale back to 1 and watch it reconcile.
-5. **Git hygiene** — confirm no plain secret file was ever committed: `git log --all --full-history -- "*secret*"`.
+1. **Scope comparison**, seal a secret with `--scope strict`, then change its name or namespace and re-apply. Observe that decryption fails. Understand why `namespace-wide` is more flexible.
+2. **Tamper test**, change one character in an encrypted blob in `sealed/todo-db-sealedsecret.yaml`, apply, and observe the controller error.
+3. **Wrong-cluster test**, apply the same `SealedSecret` in a different cluster. It cannot decrypt because the key pair is different.
+4. **Controller downtime**, scale the controller to 0 replicas, apply a new `SealedSecret`, then scale back to 1 and watch it reconcile.
+5. **Git hygiene**, confirm no plain secret file was ever committed: `git log --all --full-history -- "*secret*"`.
 
 ---
 
 ## Additional reading
 
-- [External Secrets Operator](https://external-secrets.io/latest/) — alternative approach using an external secrets store
-- [HashiCorp Vault](https://developer.hashicorp.com/vault) — enterprise-grade secrets management
+- [External Secrets Operator](https://external-secrets.io/latest/), alternative approach using an external secrets store
+- [HashiCorp Vault](https://developer.hashicorp.com/vault), enterprise-grade secrets management
 
 ---
 

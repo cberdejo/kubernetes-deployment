@@ -1,4 +1,4 @@
-# Phase 01 — Kubernetes Basics
+# Phase 01 - Kubernetes Basics
 
 - **Core concepts to master in this phase**:
   - **Kubernetes**
@@ -32,18 +32,18 @@ A Kubernetes cluster consists of two types of components:
 
 The brain of the cluster. It makes global decisions (scheduling, detecting failures, etc.). Key components:
 
-- **kube-apiserver** — the front door of the cluster. All communication (kubectl, internal components) goes through the API server.
-- **etcd** — a distributed key-value store that holds the entire cluster state.
-- **kube-scheduler** — decides which node should run a newly created Pod based on resource availability and constraints.
-- **kube-controller-manager** — runs controllers that watch cluster state and make changes to move toward the desired state (e.g., ensuring the right number of replicas).
+- **kube-apiserver**, the front door of the cluster. All communication (kubectl, internal components) goes through the API server.
+- **etcd**, a distributed key-value store that holds the entire cluster state.
+- **kube-scheduler**, decides which node should run a newly created Pod based on resource availability and constraints.
+- **kube-controller-manager**, runs controllers that watch cluster state and make changes to move toward the desired state (e.g., ensuring the right number of replicas).
 
 ### Worker Nodes
 
 The machines where your workloads actually run. Each node runs:
 
-- **kubelet** — an agent that ensures containers described by Pod specs are running and healthy.
-- **kube-proxy** — manages network rules on the node so that Pods can communicate with each other and with the outside world.
-- **container runtime** — the software that runs containers (containerd, CRI-O, etc.).
+- **kubelet**, an agent that ensures containers described by Pod specs are running and healthy.
+- **kube-proxy**, manages network rules on the node so that Pods can communicate with each other and with the outside world.
+- **container runtime**, the software that runs containers (containerd, CRI-O, etc.).
 
 ---
 
@@ -103,10 +103,10 @@ kubectl delete -f <file.yaml>         # delete resources defined in a file
 
 ### Useful flags
 
-- `-n <namespace>` — target a specific namespace
-- `-o wide` — show additional columns (node, IP, etc.)
-- `-o yaml` — output the full resource definition in YAML
-- `--watch` — watch for real-time changes
+- `-n <namespace>`, target a specific namespace
+- `-o wide`, show additional columns (node, IP, etc.)
+- `-o yaml`, output the full resource definition in YAML
+- `--watch`, watch for real-time changes
 
 ---
 
@@ -122,11 +122,11 @@ In most cases, a Pod runs a single container. Multi-container Pods are used for 
 
 ### Pod lifecycle
 
-1. **Pending** — the Pod has been accepted but containers are not yet running (image pull, scheduling).
-2. **Running** — at least one container is running.
-3. **Succeeded** — all containers exited successfully (exit code 0).
-4. **Failed** — at least one container exited with an error.
-5. **Unknown** — the state cannot be determined.
+1. **Pending**, the Pod has been accepted but containers are not yet running (image pull, scheduling).
+2. **Running**, at least one container is running.
+3. **Succeeded**, all containers exited successfully (exit code 0).
+4. **Failed**, at least one container exited with an error.
+5. **Unknown**, the state cannot be determined.
 
 ### Example Pod manifest
 
@@ -153,10 +153,10 @@ spec:
 
 A Deployment is a higher-level resource that manages a set of identical Pods. It provides:
 
-- **Desired state declaration** — you declare how many replicas you want, and Kubernetes ensures that number is running.
-- **Rolling updates** — updates Pods gradually to avoid downtime.
-- **Rollbacks** — reverts to a previous version if something goes wrong.
-- **Self-healing** — if a Pod dies, the Deployment controller creates a new one.
+- **Desired state declaration**, you declare how many replicas you want, and Kubernetes ensures that number is running.
+- **Rolling updates**, updates Pods gradually to avoid downtime.
+- **Rollbacks**, reverts to a previous version if something goes wrong.
+- **Self-healing**, if a Pod dies, the Deployment controller creates a new one.
 
 Under the hood, a Deployment creates a **ReplicaSet**, which is the controller responsible for maintaining the desired number of Pods.
 
@@ -210,7 +210,7 @@ kubectl scale deployment/nginx --replicas=5   # scale manually
 
 ## Service
 
-Pods are ephemeral — they can be created, destroyed, and rescheduled at any time. Their IP addresses are not stable. A **Service** provides a stable network endpoint to access a group of Pods.
+Pods are ephemeral, they can be created, destroyed, and rescheduled at any time. Their IP addresses are not stable. A **Service** provides a stable network endpoint to access a group of Pods.
 
 A Service uses **label selectors** to determine which Pods receive traffic.
 
@@ -317,14 +317,14 @@ Default namespaces in every cluster:
 
 Kubernetes supports two approaches:
 
-**Imperative** — you tell Kubernetes what to do step by step:
+**Imperative**, you tell Kubernetes what to do step by step:
 
 ```bash
 kubectl run nginx --image=nginx:1.27
 kubectl expose pod nginx --port=80
 ```
 
-**Declarative** — you describe the desired state in YAML files and let Kubernetes figure out how to achieve it:
+**Declarative**, you describe the desired state in YAML files and let Kubernetes figure out how to achieve it:
 
 ```bash
 kubectl apply -f deployment.yaml
@@ -336,5 +336,5 @@ kubectl apply -f deployment.yaml
 
 ## Further Reading
 
-- **[Kubernetes documentation](https://kubernetes.io/docs/home/)** — official reference for all Kubernetes concepts, APIs, and operations
-- **[Kubernetes Deployment Antipatterns – part 1](https://codefresh.io/blog/kubernetes-antipatterns-1/)** — common mistakes and bad practices to avoid when working with Kubernetes deployments
+- **[Kubernetes documentation](https://kubernetes.io/docs/home/)**, official reference for all Kubernetes concepts, APIs, and operations
+- **[Kubernetes Deployment Antipatterns – part 1](https://codefresh.io/blog/kubernetes-antipatterns-1/)**, common mistakes and bad practices to avoid when working with Kubernetes deployments

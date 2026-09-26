@@ -1,8 +1,8 @@
-# Phase 08 — Private Container Registry with Harbor
+# Phase 08 - Private Container Registry with Harbor
 
 This phase deploys Harbor as a private container registry, pushes the todo-app images to it, and reconfigures the application to pull from Harbor instead of a public registry. You will also learn how to publish Helm charts as OCI artifacts and manage image versions through the registry.
 
-**Starting point:** a working Phase 07 cluster with MetalLB, Envoy Gateway, cert-manager, Longhorn, Authentik, and the todo-app — all reachable through the Gateway over HTTPS with forward-auth protecting the services.
+**Starting point:** a working Phase 07 cluster with MetalLB, Envoy Gateway, cert-manager, Longhorn, Authentik, and the todo-app, all reachable through the Gateway over HTTPS with forward-auth protecting the services.
 
 **What you build in this phase:**
 
@@ -35,11 +35,11 @@ kubelet (pod image pull)
 
 The key idea: **images are pushed to Harbor once and pulled from Harbor by every pod that needs them**. The Gateway terminates TLS using the same homelab CA as all other services. Docker and Helm authenticate to push; containerd pulls without credentials because the project is public.
 
-Harbor is **not** protected by authentik forward-auth. Unlike Longhorn, Harbor has its own authentication system — the Core component handles login, token issuance, and API auth. Adding a `SecurityPolicy` would break the Docker registry API protocol, which uses HTTP-level token negotiation (`401 → GET /service/token → retry with Bearer`) instead of browser redirects.
+Harbor is **not** protected by authentik forward-auth. Unlike Longhorn, Harbor has its own authentication system, the Core component handles login, token issuance, and API auth. Adding a `SecurityPolicy` would break the Docker registry API protocol, which uses HTTP-level token negotiation (`401 → GET /service/token → retry with Bearer`) instead of browser redirects.
 
 ---
 
-## Step 1 — Prerequisites
+## Step 1 - Prerequisites
 
 ```bash
 # Cluster with Phase 07 running
@@ -53,7 +53,7 @@ kubectl get svc -n envoy-gateway
 
 # HTTPS working
 curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
-# Expected: 302 (redirect to authentik — forward-auth is active)
+# Expected: 302 (redirect to authentik - forward-auth is active)
 
 # Docker CLI available (needed to push images)
 docker version
@@ -68,7 +68,7 @@ docker build -t backend:1.0.0 ../../application/backend
 
 ---
 
-## Step 2 — Add `harbor.local` to the TLS certificate
+## Step 2 - Add `harbor.local` to the TLS certificate
 
 Extend the existing TLS certificate to cover the new hostname.
 
@@ -102,20 +102,13 @@ Add `harbor.local` to `/etc/hosts` (same Gateway IP):
 
 ---
 
-## Step 3 — Create and deploy the Harbor chart
+## Step 3 - Create and deploy the Harbor chart
 
-### 3a — Create the wrapper chart
+### 3a - Create the wrapper chart
 
 Create the following directory structure:
 
-```
-apps/harbor/
-├── Chart.yaml
-├── values/
-│   └── prod-values.yaml
-└── templates/
-    └── route.yaml
-```
+The `apps/harbor/` directory contains `Chart.yaml` at the root, a `values/` subdirectory with `prod-values.yaml`, and a `templates/` subdirectory with `route.yaml`.
 
 **`apps/harbor/Chart.yaml`**
 
@@ -203,7 +196,7 @@ gatewayRoute:
   backendPort: 80
 ```
 
-> **Why `expose.type: clusterIP` with `tls.enabled: false`?** TLS terminates at Envoy Gateway, not at Harbor's nginx. Harbor listens on plain HTTP internally. The `clusterIP.name: harbor` field sets the Kubernetes Service name directly — it is **not** prefixed with the Helm release name.
+> **Why `expose.type: clusterIP` with `tls.enabled: false`?** TLS terminates at Envoy Gateway, not at Harbor's nginx. Harbor listens on plain HTTP internally. The `clusterIP.name: harbor` field sets the Kubernetes Service name directly, it is **not** prefixed with the Helm release name.
 
 > **Why `externalURL: https://harbor.local`?** Harbor uses this URL to generate Docker registry token URLs and redirect URLs. It must match the hostname that clients use from outside the cluster (after TLS termination at the Gateway). If this is wrong, `docker login` and `docker push` will fail with authentication errors.
 
@@ -237,7 +230,7 @@ spec:
 {{- end }}
 ```
 
-### 3b — Deploy Harbor
+### 3b - Deploy Harbor
 
 Create the namespace with the gateway label:
 
@@ -265,14 +258,14 @@ helm upgrade --install cluster-harbor ./apps/harbor \
   --wait --timeout 5m
 ```
 
-> **`secretKey` must be exactly 16 characters.** Generate one with `openssl rand -hex 8`. This key encrypts sensitive data stored in Harbor's database. Once set, do not change it — existing encrypted values would become unreadable.
+> **`secretKey` must be exactly 16 characters.** Generate one with `openssl rand -hex 8`. This key encrypts sensitive data stored in Harbor's database. Once set, do not change it, existing encrypted values would become unreadable.
 
 Verify:
 
 ```bash
 kubectl get pods -n harbor
 # Expected: harbor-core, harbor-database, harbor-jobservice, harbor-nginx,
-#           harbor-portal, harbor-redis, harbor-registry — all Running
+#           harbor-portal, harbor-redis, harbor-registry - all Running
 
 kubectl get httproute -n harbor
 # Expected: harbor-ui   ["harbor.local"]
@@ -281,26 +274,26 @@ kubectl get svc -n harbor
 # Expected: harbor (ClusterIP, port 80)
 ```
 
-Open `https://harbor.local` in your browser — the Harbor login page should appear. Log in with `admin` and the password you set.
+Open `https://harbor.local` in your browser, the Harbor login page should appear. Log in with `admin` and the password you set.
 
 ---
 
-## Step 4 — Configure CA trust
+## Step 4 - Configure CA trust
 
 Before you can push images or have k3s pull from Harbor, every component must trust the homelab CA. There are three places the CA needs to be installed:
 
-1. **System trust store** — so `curl`, `helm`, and other CLI tools work
-2. **Docker daemon** — so `docker push` and `docker pull` work
-3. **k3s containerd** — so pods can pull images from Harbor
+1. **System trust store**, so `curl`, `helm`, and other CLI tools work
+2. **Docker daemon**, so `docker push` and `docker pull` work
+3. **k3s containerd**, so pods can pull images from Harbor
 
-### 4a — Extract the CA certificate
+### 4a - Extract the CA certificate
 
 ```bash
 kubectl get secret homelab-ca-secret -n cert-manager \
   -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/homelab-ca.crt
 ```
 
-### 4b — Install into the system trust store
+### 4b - Install into the system trust store
 
 ```bash
 sudo cp /tmp/homelab-ca.crt /usr/local/share/ca-certificates/homelab-ca.crt
@@ -315,7 +308,7 @@ curl -s https://harbor.local/api/v2.0/health
 # If you get a TLS error, the CA was not installed correctly
 ```
 
-### 4c — Install for Docker
+### 4c - Install for Docker
 
 ```bash
 sudo mkdir -p /etc/docker/certs.d/harbor.local
@@ -329,7 +322,7 @@ docker login harbor.local -u admin -p <your-harbor-password>
 # Expected: Login Succeeded
 ```
 
-### 4d — Configure k3s containerd
+### 4d - Configure k3s containerd
 
 Create the k3s registry configuration:
 
@@ -366,11 +359,11 @@ kubectl get pods -n harbor
 
 ---
 
-## Step 5 — Create a Harbor project
+## Step 5 - Create a Harbor project
 
 Images in Harbor are organized into projects. Create one for the todo-app:
 
-### Option A — Via the UI
+### Option A - Via the UI
 
 1. Log in at `https://harbor.local` (admin / your password)
 2. **Projects → New Project**
@@ -378,7 +371,7 @@ Images in Harbor are organized into projects. Create one for the todo-app:
 4. **Access Level:** check **Public** (so k3s can pull without credentials)
 5. Click **OK**
 
-### Option B — Via the API
+### Option B - Via the API
 
 ```bash
 curl -sk -u "admin:<your-harbor-password>" \
@@ -397,9 +390,9 @@ curl -sk "https://harbor.local/api/v2.0/projects" | grep -o '"name":"todo"'
 
 ---
 
-## Step 6 — Build, tag, and push images to Harbor
+## Step 6 - Build, tag, and push images to Harbor
 
-### 6a — Tag the images
+### 6a - Tag the images
 
 The images need to be tagged with the Harbor hostname and project:
 
@@ -408,14 +401,14 @@ docker tag frontend:1.0.0 harbor.local/todo/frontend:1.0.0
 docker tag backend:1.0.0 harbor.local/todo/backend:1.0.0
 ```
 
-### 6b — Push to Harbor
+### 6b - Push to Harbor
 
 ```bash
 docker push harbor.local/todo/frontend:1.0.0
 docker push harbor.local/todo/backend:1.0.0
 ```
 
-Verify in the Harbor UI: go to **Projects → todo** — you should see `frontend` and `backend` repositories, each with the `1.0.0` tag.
+Verify in the Harbor UI: go to **Projects → todo**, you should see `frontend` and `backend` repositories, each with the `1.0.0` tag.
 
 Or via the API:
 
@@ -427,7 +420,7 @@ curl -sk "https://harbor.local/api/v2.0/projects/todo/repositories" | python3 -m
 
 ---
 
-## Step 7 — Update todo-app to pull from Harbor
+## Step 7 - Update todo-app to pull from Harbor
 
 Now that the images are in Harbor, update the todo-app values to reference them.
 
@@ -471,12 +464,12 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ---
 
-## Step 8 — Verify
+## Step 8 - Verify
 
 ```bash
 # All Harbor pods running
 kubectl get pods -n harbor
-# Expected: 7 pods — core, database, jobservice, nginx, portal, redis, registry — all Running
+# Expected: 7 pods - core, database, jobservice, nginx, portal, redis, registry - all Running
 
 # Harbor service
 kubectl get svc -n harbor
@@ -517,23 +510,23 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ## Troubleshooting checklist
 
-- **Harbor pods stuck in Pending** — all PVCs require the `longhorn` StorageClass. Check that Longhorn is running: `kubectl get pods -n longhorn`. If PVCs are stuck, check `kubectl get pvc -n harbor` and `kubectl describe pvc <name> -n harbor`.
+- **Harbor pods stuck in Pending**, all PVCs require the `longhorn` StorageClass. Check that Longhorn is running: `kubectl get pods -n longhorn`. If PVCs are stuck, check `kubectl get pvc -n harbor` and `kubectl describe pvc <name> -n harbor`.
 
-- **`x509: certificate signed by unknown authority` on `docker push`** — the homelab CA is not trusted by Docker. Verify `/etc/docker/certs.d/harbor.local/ca.crt` exists and contains the correct certificate. If using Docker Desktop or Rancher Desktop, the daemon runs in a separate VM/distro and may need its own CA configuration.
+- **`x509: certificate signed by unknown authority` on `docker push`**, the homelab CA is not trusted by Docker. Verify `/etc/docker/certs.d/harbor.local/ca.crt` exists and contains the correct certificate. If using Docker Desktop or Rancher Desktop, the daemon runs in a separate VM/distro and may need its own CA configuration.
 
-- **`x509: certificate signed by unknown authority` on `docker login`** — same root cause. Also check the system trust store: `update-ca-certificates` must have been run after placing the CA in `/usr/local/share/ca-certificates/`.
+- **`x509: certificate signed by unknown authority` on `docker login`**, same root cause. Also check the system trust store: `update-ca-certificates` must have been run after placing the CA in `/usr/local/share/ca-certificates/`.
 
-- **Pods stuck in `ImagePullBackOff` with `tls: failed to verify certificate`** — k3s containerd does not trust the CA. Verify `/etc/rancher/k3s/registries.yaml` exists with the correct `ca_file` path, and that k3s was restarted after creating it. Check with `sudo systemctl restart k3s`.
+- **Pods stuck in `ImagePullBackOff` with `tls: failed to verify certificate`**, k3s containerd does not trust the CA. Verify `/etc/rancher/k3s/registries.yaml` exists with the correct `ca_file` path, and that k3s was restarted after creating it. Check with `sudo systemctl restart k3s`.
 
-- **`helm push` fails with TLS error** — Helm uses the system trust store. Ensure `update-ca-certificates` was run. Verify with `curl https://harbor.local/api/v2.0/health` (no `-k` flag) — if this fails, the system trust store is not configured.
+- **`helm push` fails with TLS error**, Helm uses the system trust store. Ensure `update-ca-certificates` was run. Verify with `curl https://harbor.local/api/v2.0/health` (no `-k` flag), if this fails, the system trust store is not configured.
 
-- **Harbor API returns 502 or connection refused** — Harbor components may still be starting. Check pod status: `kubectl get pods -n harbor`. Core, database, and redis must all be Running before the API responds. Typical startup time is 2–3 minutes.
+- **Harbor API returns 502 or connection refused**, Harbor components may still be starting. Check pod status: `kubectl get pods -n harbor`. Core, database, and redis must all be Running before the API responds. Typical startup time is 2–3 minutes.
 
-- **`docker push` returns `unauthorized: authentication required`** — run `docker login harbor.local` first. Also verify the project exists in Harbor (the push target must be `harbor.local/<project>/<image>:<tag>` — if the project name is wrong, Harbor rejects the push).
+- **`docker push` returns `unauthorized: authentication required`**, run `docker login harbor.local` first. Also verify the project exists in Harbor (the push target must be `harbor.local/<project>/<image>:<tag>`, if the project name is wrong, Harbor rejects the push).
 
-- **Harbor service name is not `harbor`** — the `expose.clusterIP.name` field in values must be set to `harbor`. Without it, the service name will be derived from the Helm release name (e.g., `cluster-harbor-harbor-nginx`), and the HTTPRoute will not find the backend.
+- **Harbor service name is not `harbor`**, the `expose.clusterIP.name` field in values must be set to `harbor`. Without it, the service name will be derived from the Helm release name (e.g., `cluster-harbor-harbor-nginx`), and the HTTPRoute will not find the backend.
 
-- **After k3s restart, pods stuck in ContainerCreating** — check if `/run/flannel/subnet.env` exists. The `k3s-killall.sh` script (sometimes triggered during restarts) removes this file. Recreate it manually if missing:
+- **After k3s restart, pods stuck in ContainerCreating**, check if `/run/flannel/subnet.env` exists. The `k3s-killall.sh` script (sometimes triggered during restarts) removes this file. Recreate it manually if missing:
   ```bash
   sudo mkdir -p /run/flannel
   sudo tee /run/flannel/subnet.env > /dev/null <<'EOF'
@@ -544,15 +537,15 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
   EOF
   ```
 
-- **Longhorn volumes fail to mount after k3s restart** — if you see `not a shared mount` errors in Longhorn manager logs, run `sudo mount --make-rshared /` and restart the affected pods.
+- **Longhorn volumes fail to mount after k3s restart**, if you see `not a shared mount` errors in Longhorn manager logs, run `sudo mount --make-rshared /` and restart the affected pods.
 
 ---
 
 ## Additional exercises
 
-1. **Enable Trivy vulnerability scanning** — set `harbor.trivy.enabled: true` in the Harbor values, redeploy, and push an image. Check the scan results in the Harbor UI under the image's tag. Try pushing an image with known CVEs (e.g., an old `node:14` image) and review the report.
+1. **Enable Trivy vulnerability scanning**, set `harbor.trivy.enabled: true` in the Harbor values, redeploy, and push an image. Check the scan results in the Harbor UI under the image's tag. Try pushing an image with known CVEs (e.g., an old `node:14` image) and review the report.
 
-2. **Publish the Helm chart to Harbor OCI** — use `scripts/publish-chart.sh` to package and push the todo-app chart to `oci://harbor.local/todo/todo-app`. Then update `bootstrap/.env` to set `TODO_APP_CHART=oci://harbor.local/todo/todo-app` and redeploy the app from the OCI registry instead of the local chart directory:
+2. **Publish the Helm chart to Harbor OCI**, use `scripts/publish-chart.sh` to package and push the todo-app chart to `oci://harbor.local/todo/todo-app`. Then update `bootstrap/.env` to set `TODO_APP_CHART=oci://harbor.local/todo/todo-app` and redeploy the app from the OCI registry instead of the local chart directory:
    ```bash
    helm upgrade --install my-app oci://harbor.local/todo/todo-app \
      --version 0.1.0 \
@@ -560,7 +553,7 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
      -n todo --wait
    ```
 
-3. **Version control workflow** — simulate a new release:
+3. **Version control workflow**, simulate a new release:
    1. Modify the frontend (e.g., change the page title in `application/frontend/`)
    2. Rebuild with a new tag: `docker build -t frontend:1.1.0 ./application/frontend`
    3. Tag and push to Harbor: `docker tag frontend:1.1.0 harbor.local/todo/frontend:1.1.0 && docker push harbor.local/todo/frontend:1.1.0`
@@ -568,11 +561,11 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
    5. Verify the new version is running, then roll back: `helm upgrade my-app <chart> -n todo --set frontend.image.tag=1.0.0`
    6. Confirm both versions remain available in Harbor (Projects → todo → frontend → Tags)
 
-4. **Private project with imagePullSecrets** — create a second Harbor project as **private**. Push an image to it. Create a Kubernetes Secret of type `kubernetes.io/dockerconfigjson` in the `todo` namespace and reference it in the Deployment's `imagePullSecrets`. Verify that pods can pull from the private project only when the secret is present.
+4. **Private project with imagePullSecrets**, create a second Harbor project as **private**. Push an image to it. Create a Kubernetes Secret of type `kubernetes.io/dockerconfigjson` in the `todo` namespace and reference it in the Deployment's `imagePullSecrets`. Verify that pods can pull from the private project only when the secret is present.
 
-5. **Robot accounts** — create a robot account in Harbor with pull-only permissions on the `todo` project. Use its token in `registries.yaml` instead of the admin password. Verify that `docker push` fails with the robot account but `docker pull` succeeds.
+5. **Robot accounts**, create a robot account in Harbor with pull-only permissions on the `todo` project. Use its token in `registries.yaml` instead of the admin password. Verify that `docker push` fails with the robot account but `docker pull` succeeds.
 
-6. **Pull-through cache** — configure Harbor as a [proxy cache](https://goharbor.io/docs/2.12.0/administration/configure-proxy-cache/) for Docker Hub. Create a proxy project, then pull a public image through Harbor (`harbor.local/dockerhub-proxy/library/nginx:latest`). The first pull fetches from Docker Hub; subsequent pulls are served from Harbor's local cache.
+6. **Pull-through cache**, configure Harbor as a [proxy cache](https://goharbor.io/docs/2.12.0/administration/configure-proxy-cache/) for Docker Hub. Create a proxy project, then pull a public image through Harbor (`harbor.local/dockerhub-proxy/library/nginx:latest`). The first pull fetches from Docker Hub; subsequent pulls are served from Harbor's local cache.
 
 ---
 
@@ -586,4 +579,4 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 - Harbor project `todo` exists and is set to public
 - Container images `harbor.local/todo/frontend:1.0.0` and `harbor.local/todo/backend:1.0.0` are pushed and visible in Harbor
 - todo-app pods reference `harbor.local/todo/frontend:1.0.0` and `harbor.local/todo/backend:1.0.0`
-- The application is functional — `https://todo.local` loads after authenticating through authentik
+- The application is functional, `https://todo.local` loads after authenticating through authentik

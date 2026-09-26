@@ -1,8 +1,8 @@
-# Phase 07 — Identity and Access Management with Authentik
+# Phase 07 - Identity and Access Management with Authentik
 
 This phase adds centralized authentication to the cluster. You will deploy authentik as the identity provider, protect the todo-app and Longhorn UI behind forward-auth via Envoy Gateway, and manage users and application access from a single dashboard.
 
-**Starting point:** a working Phase 06 cluster with MetalLB, Envoy Gateway, cert-manager, Longhorn, and the todo-app — all reachable through the Gateway over HTTPS.
+**Starting point:** a working Phase 06 cluster with MetalLB, Envoy Gateway, cert-manager, Longhorn, and the todo-app, all reachable through the Gateway over HTTPS.
 
 **What you build in this phase:**
 
@@ -33,16 +33,16 @@ User → https://todo.local
                → Repeat: ext-auth → cookie valid → 200
 ```
 
-The key idea: **Envoy delegates authentication to authentik before allowing requests through**. Every protected service gets a `SecurityPolicy` that consults the authentik outpost. The outpost runs embedded inside the authentik server — no separate deployment needed.
+The key idea: **Envoy delegates authentication to authentik before allowing requests through**. Every protected service gets a `SecurityPolicy` that consults the authentik outpost. The outpost runs embedded inside the authentik server, no separate deployment needed.
 
 Two important resources make cross-namespace auth work:
 
-- **ReferenceGrant** — allows `SecurityPolicy` and `HTTPRoute` in the `todo` / `longhorn` namespaces to reference the `authentik-server` Service in the `authentik` namespace
-- **Outpost callback HTTPRoute** — a second route on the same hostname (`/outpost.goauthentik.io/`) that sends the auth callback directly to authentik, bypassing the `SecurityPolicy` (otherwise the callback itself would trigger ext-auth, creating a redirect loop)
+- **ReferenceGrant**, allows `SecurityPolicy` and `HTTPRoute` in the `todo` / `longhorn` namespaces to reference the `authentik-server` Service in the `authentik` namespace
+- **Outpost callback HTTPRoute**, a second route on the same hostname (`/outpost.goauthentik.io/`) that sends the auth callback directly to authentik, bypassing the `SecurityPolicy` (otherwise the callback itself would trigger ext-auth, creating a redirect loop)
 
 ---
 
-## Step 1 — Prerequisites
+## Step 1 - Prerequisites
 
 ```bash
 # Cluster with Phase 06 running
@@ -60,7 +60,7 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ---
 
-## Step 2 — Add `authentik.local` to the TLS certificate
+## Step 2 - Add `authentik.local` to the TLS certificate
 
 Before deploying anything, extend the existing TLS certificate to cover the new hostname.
 
@@ -87,21 +87,11 @@ kubectl get certificate -n envoy-gateway
 
 ---
 
-## Step 3 — Create and deploy the Authentik chart
+## Step 3 - Create and deploy the Authentik chart
 
-### 3a — Create the wrapper chart
+### 3a - Create the wrapper chart
 
-Create the following directory structure:
-
-```
-apps/authentik/
-├── Chart.yaml
-├── values/
-│   └── prod-values.yaml
-└── templates/
-    ├── route.yaml
-    └── reference-grant.yaml
-```
+Create a directory `apps/authentik/` containing `Chart.yaml`, a `values/` subdirectory with `prod-values.yaml`, and a `templates/` subdirectory with `route.yaml` and `reference-grant.yaml`.
 
 **`apps/authentik/Chart.yaml`**
 
@@ -159,7 +149,7 @@ authentik:                        # ← subchart key (dependency name)
 
 > **Why `fullnameOverride: authentik`?** The authentik chart generates service names from the release name by default. With release name `cluster-authentik`, the server service would be `cluster-authentik-server`. Setting `fullnameOverride: authentik` forces the service name to `authentik-server`, which matches the default `frontend.auth.backend.serviceName` in the todo-app chart and keeps things readable.
 
-> **Why two password fields?** `authentik.postgresql.password` tells the authentik server how to connect to PostgreSQL. `postgresql.auth.password` tells the Bitnami PostgreSQL subchart what password to set for the database user. Both must be identical — if they diverge, the server cannot authenticate and enters a crash loop with `fe_sendauth: no password supplied`.
+> **Why two password fields?** `authentik.postgresql.password` tells the authentik server how to connect to PostgreSQL. `postgresql.auth.password` tells the Bitnami PostgreSQL subchart what password to set for the database user. Both must be identical, if they diverge, the server cannot authenticate and enters a crash loop with `fe_sendauth: no password supplied`.
 
 **`apps/authentik/templates/route.yaml`**
 
@@ -240,7 +230,7 @@ referenceGrant:
     - longhorn
 ```
 
-### 3b — Deploy Authentik
+### 3b - Deploy Authentik
 
 Create the namespace with the gateway label so HTTPRoutes can attach:
 
@@ -282,7 +272,7 @@ Verify:
 
 ```bash
 kubectl get pods -n authentik
-# Expected: authentik-server, authentik-worker, cluster-authentik-postgresql — all Running
+# Expected: authentik-server, authentik-worker, cluster-authentik-postgresql - all Running
 
 kubectl get httproute -n authentik
 # Expected: authentik-ui   ["authentik.local"]
@@ -297,21 +287,21 @@ Add to `/etc/hosts` (same Gateway IP as phase 06):
 <GATEWAY-IP>  todo.local longhorn.local authentik.local
 ```
 
-Open `https://authentik.local` — the login page should load. Sign in with `akadmin` and the bootstrap password you set.
+Open `https://authentik.local`, the login page should load. Sign in with `akadmin` and the bootstrap password you set.
 
 ---
 
-## Step 4 — Configure Authentik (UI)
+## Step 4 - Configure Authentik (UI)
 
 Configure authentik **before** enabling auth on the apps. This way, when you flip `auth.enabled: true` in the next steps, the outpost already knows which applications to protect and the flow works immediately.
 
-### 4a — Set the Authentik domain
+### 4a - Set the Authentik domain
 
 Go to **System → Settings**. Set the **authentik domain** field to `authentik.local` and save.
 
 Without this, the Embedded Outpost shows a warning and authentication redirects will not work because authentik does not know its own external URL.
 
-### 4b — Create the todo-app Application
+### 4b - Create the todo-app Application
 
 1. Go to **Applications → Applications → Create**
 2. Fill in:
@@ -324,9 +314,9 @@ Without this, the Embedded Outpost shows a warning and authentication redirects 
    - **External host:** `https://todo.local`
 4. Finish the wizard
 
-> **Implicit consent vs explicit consent:** With implicit consent, the user is redirected to the app immediately after login — no "Do you authorize this application?" screen. Use explicit consent when you want users to review the permissions an app requests before granting access.
+> **Implicit consent vs explicit consent:** With implicit consent, the user is redirected to the app immediately after login, no "Do you authorize this application?" screen. Use explicit consent when you want users to review the permissions an app requests before granting access.
 
-### 4c — Create the Longhorn Application
+### 4c - Create the Longhorn Application
 
 Same process:
 
@@ -338,21 +328,21 @@ Same process:
    - **External host:** `https://longhorn.local`
 4. Finish
 
-### 4d — Verify the Embedded Outpost
+### 4d - Verify the Embedded Outpost
 
 Go to **Applications → Outposts**. Click the **authentik Embedded Outpost**. Both applications (`todo-app` and `longhorn`) should appear in the outpost's application list. If they do not, edit the outpost and add them.
 
-The Embedded Outpost runs inside the authentik server process — it serves the `/outpost.goauthentik.io/` paths that the `SecurityPolicy` and callback routes point to. No separate outpost deployment is needed.
+The Embedded Outpost runs inside the authentik server process, it serves the `/outpost.goauthentik.io/` paths that the `SecurityPolicy` and callback routes point to. No separate outpost deployment is needed.
 
 ---
 
-## Step 5 — Prepare the forward-auth templates
+## Step 5 - Prepare the forward-auth templates
 
 With authentik configured and ready to authenticate, prepare the Kubernetes resources that connect Envoy to it. This step creates all the templates; the next step activates them by flipping values.
 
-### 5a — Update the SecurityPolicy in the canonical chart
+### 5a - Update the SecurityPolicy in the canonical chart
 
-The canonical chart already has `templates/frontend/security-policy.yaml` that renders an Envoy `SecurityPolicy` when `frontend.auth.enabled: true`. It needs one addition: `headersToExtAuth`, which tells Envoy which request headers to forward to the ext-auth backend. Without at least `cookie`, the session cookie never reaches authentik and every request is treated as unauthenticated — causing a redirect loop.
+The canonical chart already has `templates/frontend/security-policy.yaml` that renders an Envoy `SecurityPolicy` when `frontend.auth.enabled: true`. It needs one addition: `headersToExtAuth`, which tells Envoy which request headers to forward to the ext-auth backend. Without at least `cookie`, the session cookie never reaches authentik and every request is treated as unauthenticated, causing a redirect loop.
 
 Update `application/chart/templates/frontend/security-policy.yaml`:
 
@@ -368,7 +358,7 @@ Update `application/chart/templates/frontend/security-policy.yaml`:
 
 The chart's default values already define `frontend.auth.headersToExtAuth` with `cookie`, `authorization`, and forwarded-* headers.
 
-### 5b — Add the outpost callback route to the canonical chart
+### 5b - Add the outpost callback route to the canonical chart
 
 Create `application/chart/templates/frontend/outpost-route.yaml`:
 
@@ -399,9 +389,9 @@ spec:
 {{- end }}
 ```
 
-> **Why a separate HTTPRoute?** The `SecurityPolicy` targets the main frontend HTTPRoute by name. If the outpost callback path (`/outpost.goauthentik.io/callback`) were part of the same route, Envoy would also run ext-auth on it — but the callback is the step that *establishes* the session. Running ext-auth on it creates a redirect loop. A second HTTPRoute with a longer path prefix (`/outpost.goauthentik.io/` vs `/`) takes precedence in Gateway API routing, and the `SecurityPolicy` does not apply to it.
+> **Why a separate HTTPRoute?** The `SecurityPolicy` targets the main frontend HTTPRoute by name. If the outpost callback path (`/outpost.goauthentik.io/callback`) were part of the same route, Envoy would also run ext-auth on it, but the callback is the step that *establishes* the session. Running ext-auth on it creates a redirect loop. A second HTTPRoute with a longer path prefix (`/outpost.goauthentik.io/` vs `/`) takes precedence in Gateway API routing, and the `SecurityPolicy` does not apply to it.
 
-### 5c — Add auth templates to the Longhorn wrapper chart
+### 5c - Add auth templates to the Longhorn wrapper chart
 
 The Longhorn wrapper chart needs the same two resources. Create both files:
 
@@ -466,11 +456,11 @@ spec:
 
 ---
 
-## Step 6 — Enable auth and deploy
+## Step 6 - Enable auth and deploy
 
 All templates are in place and authentik is configured. Now flip the switch.
 
-### 6a — Enable auth for the todo-app
+### 6a - Enable auth for the todo-app
 
 Update `apps/todo-app/values/prod-values.yaml`:
 
@@ -488,9 +478,9 @@ helm upgrade --install my-app <chart-path> \
   -n todo --wait
 ```
 
-### 6b — Enable auth for Longhorn
+### 6b - Enable auth for Longhorn
 
-Update `apps/longhorn/values/prod-values.yaml` — add the `auth` block:
+Update `apps/longhorn/values/prod-values.yaml`, add the `auth` block:
 
 ```yaml
 auth:
@@ -520,7 +510,7 @@ helm upgrade --install cluster-longhorn ./apps/longhorn \
   -n longhorn --wait
 ```
 
-### 6c — Verify resources
+### 6c - Verify resources
 
 ```bash
 kubectl get securitypolicy -A
@@ -528,13 +518,13 @@ kubectl get securitypolicy -A
 # Both should show status: Accepted
 
 kubectl get httproute -A
-# Expected: 5 routes — authentik-ui, longhorn-ui, longhorn-outpost-callback,
+# Expected: 5 routes - authentik-ui, longhorn-ui, longhorn-outpost-callback,
 #           my-app-todo-app-frontend, my-app-todo-app-outpost-callback
 ```
 
 ---
 
-## Step 7 — Test the authentication flow
+## Step 7 - Test the authentication flow
 
 Clear your browser cookies (or open an incognito window) and navigate to `https://todo.local`.
 
@@ -542,8 +532,8 @@ Expected flow:
 
 1. Browser redirects to `https://authentik.local` with a login form
 2. Log in as `akadmin` with your bootstrap password
-3. Browser redirects back to `https://todo.local` — the todo-app loads
-4. Open `https://longhorn.local` — since you already have a session, it loads without asking for credentials again (SSO)
+3. Browser redirects back to `https://todo.local`, the todo-app loads
+4. Open `https://longhorn.local`, since you already have a session, it loads without asking for credentials again (SSO)
 
 ```bash
 # From the command line:
@@ -554,9 +544,9 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ---
 
-## Step 8 — Create users and manage access
+## Step 8 - Create users and manage access
 
-### 8a — Create a user
+### 8a - Create a user
 
 1. Go to **Directory → Users → Create**
 2. Fill in:
@@ -568,11 +558,11 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 The user can now log in at `https://authentik.local`, but has access to all applications by default.
 
-### 8b — Use groups for scalable access control
+### 8b - Use groups for scalable access control
 
 Instead of binding users one by one to applications, use groups:
 
-1. **Directory → Groups → Create** — create a group (e.g., `platform-admins`)
+1. **Directory → Groups → Create**, create a group (e.g., `platform-admins`)
 2. Add users to the group (Directory → Groups → `platform-admins` → Users → Add)
 3. Bind the group to an application:
    - **Applications → todo-app → Policy / Group / User Bindings → Bind existing policy/group/user**
@@ -580,7 +570,7 @@ Instead of binding users one by one to applications, use groups:
 
 All members of `platform-admins` can now access `todo-app`. Add or remove users from the group to manage access without touching application bindings.
 
-### 8c — Restrict Longhorn to admins only
+### 8c - Restrict Longhorn to admins only
 
 To ensure only administrators can access Longhorn:
 
@@ -592,12 +582,12 @@ Now only users in the `authentik Admins` group (like `akadmin`) can reach `https
 
 ---
 
-## Step 9 — Verify
+## Step 9 - Verify
 
 ```bash
 # All authentik pods running
 kubectl get pods -n authentik
-# Expected: authentik-server, authentik-worker, postgresql — all Running
+# Expected: authentik-server, authentik-worker, postgresql - all Running
 
 # Services
 kubectl get svc -n authentik
@@ -632,25 +622,25 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ## Troubleshooting checklist
 
-- **authentik server CrashLoopBackOff with `fe_sendauth: no password supplied`** — the PostgreSQL connection password is missing or mismatched. Ensure `authentik.authentik.postgresql.password` and `authentik.postgresql.auth.password` are identical. If the PostgreSQL PVC already has data with a different password, delete the PVC and reinstall: `helm uninstall cluster-authentik -n authentik && kubectl delete pvc -n authentik --all`
-- **`ERR_TOO_MANY_REDIRECTS` on todo.local or longhorn.local** — the `SecurityPolicy` is missing `headersToExtAuth` with `cookie`. Without it, Envoy never sends the session cookie to the ext-auth backend, so every request is unauthenticated. Add `headersToExtAuth: [cookie, authorization]` under `extAuth` in the SecurityPolicy template
-- **404 "Not Found" page from authentik when accessing todo.local** — the Proxy Provider is not assigned to the Embedded Outpost. Go to Applications → Outposts → authentik Embedded Outpost and verify both applications appear in the list
-- **"authentik Domain is not configured" warning on the outpost** — go to System → Settings and set the authentik domain to `authentik.local`
-- **SecurityPolicy status is not `Accepted`** — check that the `ReferenceGrant` in the `authentik` namespace exists and allows the correct source namespaces. Also verify the `authentik-server` service exists: `kubectl get svc -n authentik`
-- **HTTPRoute shows `NotResolvedRefs`** — the backend service name does not match. Verify `fullnameOverride: authentik` is set in the authentik chart values, which produces the service name `authentik-server`
-- **authentik UI loads but shows a blank page** — browser may be blocking self-signed resources. Import the homelab CA into your browser trust store (see Phase 06 Step 7)
-- **Login works but app still shows 302** — clear cookies and try in an incognito window. Old cookies from a misconfigured attempt can persist and confuse the session
+- **authentik server CrashLoopBackOff with `fe_sendauth: no password supplied`**, the PostgreSQL connection password is missing or mismatched. Ensure `authentik.authentik.postgresql.password` and `authentik.postgresql.auth.password` are identical. If the PostgreSQL PVC already has data with a different password, delete the PVC and reinstall: `helm uninstall cluster-authentik -n authentik && kubectl delete pvc -n authentik --all`
+- **`ERR_TOO_MANY_REDIRECTS` on todo.local or longhorn.local**, the `SecurityPolicy` is missing `headersToExtAuth` with `cookie`. Without it, Envoy never sends the session cookie to the ext-auth backend, so every request is unauthenticated. Add `headersToExtAuth: [cookie, authorization]` under `extAuth` in the SecurityPolicy template
+- **404 "Not Found" page from authentik when accessing todo.local**, the Proxy Provider is not assigned to the Embedded Outpost. Go to Applications → Outposts → authentik Embedded Outpost and verify both applications appear in the list
+- **"authentik Domain is not configured" warning on the outpost**, go to System → Settings and set the authentik domain to `authentik.local`
+- **SecurityPolicy status is not `Accepted`**, check that the `ReferenceGrant` in the `authentik` namespace exists and allows the correct source namespaces. Also verify the `authentik-server` service exists: `kubectl get svc -n authentik`
+- **HTTPRoute shows `NotResolvedRefs`**, the backend service name does not match. Verify `fullnameOverride: authentik` is set in the authentik chart values, which produces the service name `authentik-server`
+- **authentik UI loads but shows a blank page**, browser may be blocking self-signed resources. Import the homelab CA into your browser trust store (see Phase 06 Step 7)
+- **Login works but app still shows 302**, clear cookies and try in an incognito window. Old cookies from a misconfigured attempt can persist and confuse the session
 
 ---
 
 ## Additional exercises
 
-1. **OIDC login for the todo-app** — instead of forward-auth, create an OAuth2/OpenID Provider in authentik and modify the todo-app backend to authenticate directly via OIDC. The well-known endpoint is `https://authentik.local/application/o/<slug>/.well-known/openid-configuration`.
-2. **Domain-level forward auth** — switch the Proxy Providers from "Forward auth (single application)" to "Forward auth (domain level)". This uses a single cookie domain for all applications, so the outpost callback only needs to run on the authentik hostname. Compare the trade-offs.
-3. **Two-factor authentication** — enable TOTP in authentik (Flows → Stages → add an Authenticator Validation Stage to the default authentication flow). Log in as a regular user and confirm the TOTP prompt appears.
-4. **Self-service enrollment** — create an enrollment flow so users can register without admin intervention. Test by opening an incognito window and clicking "Sign up" on the login page.
-5. **Password recovery** — configure an email stage with a local SMTP server (like MailHog) and test the password recovery flow end-to-end.
-6. **Application-level MFA** — create an authorization flow that requires MFA only for the `longhorn` application (admin tooling) but not for `todo-app`.
+1. **OIDC login for the todo-app**, instead of forward-auth, create an OAuth2/OpenID Provider in authentik and modify the todo-app backend to authenticate directly via OIDC. The well-known endpoint is `https://authentik.local/application/o/<slug>/.well-known/openid-configuration`.
+2. **Domain-level forward auth**, switch the Proxy Providers from "Forward auth (single application)" to "Forward auth (domain level)". This uses a single cookie domain for all applications, so the outpost callback only needs to run on the authentik hostname. Compare the trade-offs.
+3. **Two-factor authentication**, enable TOTP in authentik (Flows → Stages → add an Authenticator Validation Stage to the default authentication flow). Log in as a regular user and confirm the TOTP prompt appears.
+4. **Self-service enrollment**, create an enrollment flow so users can register without admin intervention. Test by opening an incognito window and clicking "Sign up" on the login page.
+5. **Password recovery**, configure an email stage with a local SMTP server (like MailHog) and test the password recovery flow end-to-end.
+6. **Application-level MFA**, create an authorization flow that requires MFA only for the `longhorn` application (admin tooling) but not for `todo-app`.
 
 ---
 

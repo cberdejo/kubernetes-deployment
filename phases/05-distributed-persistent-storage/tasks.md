@@ -1,4 +1,4 @@
-# Phase 05 — Distributed Persistent Storage with Longhorn
+# Phase 05 - Distributed Persistent Storage with Longhorn
 
 This phase adds real persistent storage to the todo-app. You will create a Longhorn wrapper chart and wire the canonical `application/chart` Helm chart to a Longhorn-backed PVC so data survives Pod restarts and node rescheduling.
 
@@ -35,24 +35,24 @@ The key idea: **PostgreSQL is decoupled from the node where it runs**. The volum
 
 ---
 
-## Step 0 — Choose your cluster
+## Step 0 - Choose your cluster
 
-From this phase onwards, **Minikube is no longer enough**. Longhorn's V1 data engine requires `iscsiadm` on every node — a kernel-level iSCSI tool that Minikube does not expose. You need a real cluster where you control the nodes.
+From this phase onwards, **Minikube is no longer enough**. Longhorn's V1 data engine requires `iscsiadm` on every node, a kernel-level iSCSI tool that Minikube does not expose. You need a real cluster where you control the nodes.
 
 Pick one option below, follow its setup guide, and come back once `kubectl get nodes` shows all nodes as `Ready`.
 
 | Option | Setup guide | Best for |
 |--------|-------------|----------|
-| **k3s on Linux** | [docs/cluster-setup/k3s.md](../../docs/cluster-setup/k3s.md) | Fastest — runs on your existing Linux machine |
+| **k3s on Linux** | [docs/cluster-setup/k3s.md](../../docs/cluster-setup/k3s.md) | Fastest, runs on your existing Linux machine |
 | **Talos Linux on VM/bare metal** | [docs/cluster-setup/talos-vm.md](../../docs/cluster-setup/talos-vm.md) | Production-like, fully declarative |
-| **Managed cloud** (EKS, GKE, AKS, DigitalOcean) | Provider docs | Existing cloud cluster — ensure `open-iscsi` on workers |
-| **Any CNCF-certified cluster** | — | `sudo apt install open-iscsi` on each node |
+| **Managed cloud** (EKS, GKE, AKS, DigitalOcean) | Provider docs | Existing cloud cluster, ensure `open-iscsi` on workers |
+| **Any CNCF-certified cluster** |, | `sudo apt install open-iscsi` on each node |
 
 **Minimum per node:** 2 CPU, 4 GB RAM, 20 GB free disk.
 
 ---
 
-## Step 1 — Prerequisites
+## Step 1 - Prerequisites
 
 ```bash
 # All nodes should be Ready
@@ -75,18 +75,11 @@ kubectl rollout status daemonset/longhorn-manager -n longhorn
 
 ---
 
-## Step 2 — Create the Longhorn wrapper chart
+## Step 2 - Create the Longhorn wrapper chart
 
 Create the following directory structure. Each file is shown with its full content below.
 
-```
-apps/longhorn/
-├── Chart.yaml
-├── values/
-│   └── prod-values.yaml
-└── templates/
-    └── route.yaml
-```
+The `apps/longhorn/` directory contains `Chart.yaml` at the root, a `values/` subdirectory with `prod-values.yaml`, and a `templates/` subdirectory with `route.yaml`.
 
 **`apps/longhorn/Chart.yaml`**
 
@@ -124,7 +117,7 @@ gatewayRoute:
 
 **Namespace with Pod Security Admission labels**
 
-Longhorn DaemonSet pods need `privileged` access to mount block devices. Pod Security Admission (PSA) labels on the namespace allow this — without them Kubernetes blocks pod startup. Create the namespace before installing the chart:
+Longhorn DaemonSet pods need `privileged` access to mount block devices. Pod Security Admission (PSA) labels on the namespace allow this, without them Kubernetes blocks pod startup. Create the namespace before installing the chart:
 
 ```bash
 kubectl apply -f - <<'EOF'
@@ -142,11 +135,11 @@ metadata:
 EOF
 ```
 
-The solution's `bootstrap.sh` handles this automatically. The Longhorn wrapper chart does not manage namespace creation — it is left to the bootstrap or the operator.
+The solution's `bootstrap.sh` handles this automatically. The Longhorn wrapper chart does not manage namespace creation, it is left to the bootstrap or the operator.
 
 **`apps/longhorn/templates/route.yaml`**
 
-This template is disabled for now — it wires the Longhorn UI into Envoy Gateway, which you install in Phase 06.
+This template is disabled for now, it wires the Longhorn UI into Envoy Gateway, which you install in Phase 06.
 
 ```yaml
 {{- if .Values.gatewayRoute.enabled }}
@@ -201,17 +194,11 @@ kubectl patch storageclass <existing-default> \
 
 ---
 
-## Step 3 — Use the canonical todo-app chart
+## Step 3 - Use the canonical todo-app chart
 
 From this phase onward, the todo-app chart lives at the repository root:
 
-```text
-application/chart/
-├── Chart.yaml
-├── templates/
-└── values/
-    └── prod-values.yaml
-```
+The `application/chart/` directory contains `Chart.yaml` at the root, a `templates/` subdirectory for the Helm templates, and a `values/` subdirectory with `prod-values.yaml`.
 
 The phase solution keeps only `solution/apps/todo-app/values/prod-values.yaml`. The chart templates live in `application/chart`, while each phase owns only the values it needs for that phase.
 
@@ -219,11 +206,11 @@ The chart creates `todo-db-secret` with a `pre-install,pre-upgrade` Helm hook wh
 
 ---
 
-## Step 4 — Update the todo-app chart for persistent storage
+## Step 4 - Update the todo-app chart for persistent storage
 
 Starting from the canonical `application/chart`, make the following changes.
 
-### 4a — Add the PVC template
+### 4a - Add the PVC template
 
 Create `application/chart/templates/database/postgres-pvc.yaml`:
 
@@ -246,7 +233,7 @@ spec:
 {{- end }}
 ```
 
-### 4b — Mount the PVC in the PostgreSQL deployment
+### 4b - Mount the PVC in the PostgreSQL deployment
 
 In `application/chart/templates/database/postgres-deployment.yaml`, add the `volumeMounts` and `volumes` blocks inside the container spec (guarded by the `persistence.enabled` flag):
 
@@ -270,7 +257,7 @@ In `application/chart/templates/database/postgres-deployment.yaml`, add the `vol
 
 > **Why `subPath: pgdata`?** PostgreSQL requires an empty directory at mount time. Without `subPath`, the PVC root becomes the data directory and PostgreSQL refuses to initialise.
 
-Also add `strategy: type: Recreate` to the Deployment spec — this prevents a second PostgreSQL Pod from starting while the first is still holding the PVC, which would cause a mount conflict:
+Also add `strategy: type: Recreate` to the Deployment spec, this prevents a second PostgreSQL Pod from starting while the first is still holding the PVC, which would cause a mount conflict:
 
 ```yaml
 spec:
@@ -279,7 +266,7 @@ spec:
     type: Recreate
 ```
 
-### 4c — Add persistence values
+### 4c - Add persistence values
 
 In `solution/apps/todo-app/values/prod-values.yaml`, keep the Phase 05 deployment values. This file is complete enough to install the canonical chart from Docker Hub OCI, while disabling Gateway routing until Phase 06:
 
@@ -300,7 +287,7 @@ postgres:
 
 ---
 
-## Step 5 — Deploy the todo-app
+## Step 5 - Deploy the todo-app
 
 Deploy the canonical chart from the local repository:
 
@@ -352,7 +339,7 @@ The bootstrap script overrides the image repositories from `.env`, so you do not
 
 ---
 
-## Step 6 — Verify
+## Step 6 - Verify
 
 ```bash
 # PVC should be Bound to a Longhorn volume
@@ -381,7 +368,7 @@ kubectl port-forward svc/longhorn-frontend 8080:80 -n longhorn
 ## Troubleshooting checklist
 
 - `iscsiadm --version` (Linux) or `talosctl -n <ip> ls /usr/sbin/iscsiadm` (Talos) succeeds on every storage node before installing Longhorn
-- `longhorn-manager` in `CrashLoopBackOff` with `failed to execute iscsiadm` — on Linux: `sudo apt install open-iscsi && sudo systemctl enable --now iscsid`; on Talos: re-create node with the correct ISO from factory.talos.dev
+- `longhorn-manager` in `CrashLoopBackOff` with `failed to execute iscsiadm`, on Linux: `sudo apt install open-iscsi && sudo systemctl enable --now iscsid`; on Talos: re-create node with the correct ISO from factory.talos.dev
 - `longhorn` StorageClass exists: `kubectl get storageclass`
 - PVC is `Bound`; if `Pending`: `kubectl describe pvc -n todo`
 - `subPath: pgdata` is present in the postgres Deployment
@@ -398,12 +385,12 @@ Set a new `POSTGRES_PASSWORD` in `bootstrap/.env` before the first install if yo
 
 ## Additional exercises
 
-1. **Replica verification** — open Longhorn UI, find the PostgreSQL volume, confirm replicas. Compare "healthy" vs "degraded" states.
-2. **Pod eviction test** — delete the PostgreSQL Pod. Confirm Kubernetes reschedules it and the PVC reattaches with data intact.
-3. **Reclaim policy test** — set StorageClass `reclaimPolicy: Retain`, delete the PVC, observe the Longhorn volume remains. Then delete it manually.
-4. **Snapshot** — create a volume snapshot in Longhorn UI. Insert test data. Delete the data. Restore from snapshot and confirm data returns.
-5. **Single vs multiple replicas** — change `defaultClassReplicaCount` in `prod-values.yaml` and observe volume health in the UI.
-6. **Node drain** — drain a node (`kubectl drain <node> --ignore-daemonsets`). Observe Longhorn rebuilding replicas on remaining nodes. Uncordon and observe rebalancing.
+1. **Replica verification**, open Longhorn UI, find the PostgreSQL volume, confirm replicas. Compare "healthy" vs "degraded" states.
+2. **Pod eviction test**, delete the PostgreSQL Pod. Confirm Kubernetes reschedules it and the PVC reattaches with data intact.
+3. **Reclaim policy test**, set StorageClass `reclaimPolicy: Retain`, delete the PVC, observe the Longhorn volume remains. Then delete it manually.
+4. **Snapshot**, create a volume snapshot in Longhorn UI. Insert test data. Delete the data. Restore from snapshot and confirm data returns.
+5. **Single vs multiple replicas**, change `defaultClassReplicaCount` in `prod-values.yaml` and observe volume health in the UI.
+6. **Node drain**, drain a node (`kubectl drain <node> --ignore-daemonsets`). Observe Longhorn rebuilding replicas on remaining nodes. Uncordon and observe rebalancing.
 
 ---
 

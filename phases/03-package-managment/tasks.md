@@ -1,4 +1,4 @@
-# Phase 03 — Package Management and Templating with Helm
+# Phase 03 - Package Management and Templating with Helm
 
 This guide details the transformation of static Kubernetes manifests (from Phase 02) into a reusable Helm Chart.
 
@@ -238,7 +238,7 @@ Before upgrading with new values, move credentials out of CLI flags and into a r
 
 The chart you built in this phase is a learning exercise. The repository already contains a production-ready version of the same chart at [`application/chart/`](../../application/chart/). It includes all the templates and helpers you practiced here, plus additional features (bootstrap hooks, Gateway API routes, auth integration) that are gated behind value flags and progressively enabled in later phases.
 
-From Phase 04 onwards, every phase deploys from `application/chart/` instead of carrying its own copy. Each phase only provides a **values override file** that enables the features it introduces, while the chart templates stay in one place. This is the standard GitOps pattern: one chart, many environments — only the values change.
+From Phase 04 onwards, every phase deploys from `application/chart/` instead of carrying its own copy. Each phase only provides a **values override file** that enables the features it introduces, while the chart templates stay in one place. This is the standard GitOps pattern: one chart, many environments, only the values change.
 
 ---
 

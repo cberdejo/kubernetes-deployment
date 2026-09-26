@@ -47,7 +47,7 @@ It works, but the problems compound quickly:
 
 ### LoadBalancer
 
-Creates an external load balancer (on cloud providers) that forwards to the Service. Fixes the non-standard port problem — you get a real IP on port 80 — but each Service gets its own load balancer. That is expensive and still provides no routing logic. On bare metal clusters there is no cloud control plane, so `LoadBalancer` services stay in `<pending>` forever — MetalLB fills this gap (covered below).
+Creates an external load balancer (on cloud providers) that forwards to the Service. Fixes the non-standard port problem, you get a real IP on port 80, but each Service gets its own load balancer. That is expensive and still provides no routing logic. On bare metal clusters there is no cloud control plane, so `LoadBalancer` services stay in `<pending>` forever, MetalLB fills this gap (covered below).
 
 ### Ingress (the predecessor to Gateway API)
 
@@ -62,7 +62,7 @@ Routing rule: /api/* → backend-service
 Routing rule: /*     → frontend-service
 ```
 
-This works, but Ingress has a fundamental design flaw: the spec only covers basic path and host routing. Everything else — TLS options, rate limiting, authentication, redirect behavior — is implemented via **controller-specific annotations**. The annotations for nginx are different from Traefik, which are different from HAProxy. If you switch controllers, you rewrite all your routing configuration.
+This works, but Ingress has a fundamental design flaw: the spec only covers basic path and host routing. Everything else, TLS options, rate limiting, authentication, redirect behavior, is implemented via **controller-specific annotations**. The annotations for nginx are different from Traefik, which are different from HAProxy. If you switch controllers, you rewrite all your routing configuration.
 
 ---
 
@@ -153,7 +153,7 @@ The `parentRefs` field is how the HTTPRoute attaches to a specific Gateway. Cros
 ```
 External request: GET http://192.168.1.10/
      ↓
-Envoy proxy pod (port 80) — the Gateway's data plane
+Envoy proxy pod (port 80), the Gateway's data plane
      ↓
 Gateway API controller matches request against HTTPRoutes
      ↓
@@ -175,7 +175,7 @@ The backend never needs its own HTTPRoute. The frontend nginx handles the proxy.
 When multiple HTTPRoutes attach to the same Gateway on the same port, they need a way to not conflict with each other. The cleanest mechanism is **hostname matching**.
 
 ```yaml
-# Longhorn UI route — only matches the "longhorn.local" hostname
+# Longhorn UI route - only matches the "longhorn.local" hostname
 spec:
   hostnames:
     - "longhorn.local"
@@ -188,7 +188,7 @@ spec:
             type: PathPrefix
             value: /
 
-# Todo-app route — no hostname filter, matches everything else
+# Todo-app route - no hostname filter, matches everything else
 spec:
   rules:
     - backendRefs:
@@ -231,32 +231,11 @@ Envoy Gateway is a CNCF project that implements the Kubernetes Gateway API using
 
 ### What Envoy Proxy is
 
-Envoy is a high-performance open-source proxy originally built at Lyft and donated to the CNCF. It is also the data plane used by Istio, AWS App Mesh, and many other service meshes and API gateways. Its key advantage is **dynamic configuration via xDS APIs** — the proxy can be reconfigured without restarts, which is essential in a Kubernetes environment where routes change constantly.
+Envoy is a high-performance open-source proxy originally built at Lyft and donated to the CNCF. It is also the data plane used by Istio, AWS App Mesh, and many other service meshes and API gateways. Its key advantage is **dynamic configuration via xDS APIs**, the proxy can be reconfigured without restarts, which is essential in a Kubernetes environment where routes change constantly.
 
 ### Architecture
 
-```
-┌──────────────────────────────────────────┐
-│  Kubernetes API Server                   │
-│  (GatewayClass, Gateway, HTTPRoute objs) │
-└────────────────┬─────────────────────────┘
-                 │ watches
-                 ▼
-┌──────────────────────────────────────────┐
-│  Envoy Gateway (control plane)           │
-│  - Watches Gateway API resources         │
-│  - Translates them to Envoy xDS config   │
-│  - Pushes config to Envoy proxy via gRPC │
-└────────────────┬─────────────────────────┘
-                 │ xDS (dynamic config)
-                 ▼
-┌──────────────────────────────────────────┐
-│  Envoy Proxy (data plane)                │
-│  - Handles actual HTTP traffic           │
-│  - LoadBalancer Service exposes port 80  │
-│  - Created per Gateway resource          │
-└──────────────────────────────────────────┘
-```
+The architecture has three layers. The **Kubernetes API Server** stores GatewayClass, Gateway, and HTTPRoute objects. **Envoy Gateway** (the control plane) watches those resources, translates them into Envoy xDS configuration, and pushes that configuration to the proxy via gRPC. **Envoy Proxy** (the data plane) receives the dynamic xDS config and handles the actual HTTP traffic; it is exposed through a LoadBalancer Service on port 80 and one instance is created per Gateway resource.
 
 Each `Gateway` resource you create causes Envoy Gateway to spin up a dedicated Envoy Proxy `Deployment` and a `Service` (typically `LoadBalancer` type) that exposes it. This is unlike nginx Ingress, where a single controller handles all ingress traffic. With Envoy Gateway you can have multiple Gateway instances for different purposes (public vs. internal, HTTP vs. gRPC).
 
@@ -268,13 +247,13 @@ Envoy Gateway is distributed as a Helm chart via OCI registry:
 oci://docker.io/envoyproxy/gateway-helm
 ```
 
-The chart installs the Envoy Gateway control plane (a `Deployment` in the target namespace). GatewayClass and Gateway resources are then created separately — in this phase, via a Helm wrapper chart that pins the version and keeps everything in Git.
+The chart installs the Envoy Gateway control plane (a `Deployment` in the target namespace). GatewayClass and Gateway resources are then created separately, in this phase, via a Helm wrapper chart that pins the version and keeps everything in Git.
 
 ---
 
 ## MetalLB
 
-Cloud providers implement the `LoadBalancer` service type natively: create a `LoadBalancer` service and the cloud allocates a real IP and routes traffic to it automatically. On bare metal there is no cloud control plane. MetalLB runs inside the cluster and fills that role — it watches for `LoadBalancer` services and assigns IPs from a configured pool, announcing those IPs to the network using Layer 2 (ARP/NDP) or BGP.
+Cloud providers implement the `LoadBalancer` service type natively: create a `LoadBalancer` service and the cloud allocates a real IP and routes traffic to it automatically. On bare metal there is no cloud control plane. MetalLB runs inside the cluster and fills that role, it watches for `LoadBalancer` services and assigns IPs from a configured pool, announcing those IPs to the network using Layer 2 (ARP/NDP) or BGP.
 
 This matters for this phase because Envoy Gateway creates a `LoadBalancer` service for each `Gateway` resource. Without MetalLB, that service stays `<pending>` and traffic never reaches the cluster.
 
@@ -290,7 +269,7 @@ MetalLB speaker on elected node: I do!
 kube-proxy → Envoy Proxy pod
 ```
 
-The main limitation: all traffic funnels through the elected node. If that node goes down, MetalLB elects another, but existing connections drop — failover is not seamless. For a homelab this is acceptable.
+The main limitation: all traffic funnels through the elected node. If that node goes down, MetalLB elects another, but existing connections drop, failover is not seamless. For a homelab this is acceptable.
 
 ### BGP mode
 
@@ -320,7 +299,7 @@ spec:
     - local-pool
 ```
 
-When Envoy Gateway creates a `LoadBalancer` service for a `Gateway` resource, MetalLB assigns it an IP from the pool (e.g., `192.168.1.200`). That IP becomes the stable external address for the cluster's entry point — the one you put in DNS or `/etc/hosts`.
+When Envoy Gateway creates a `LoadBalancer` service for a `Gateway` resource, MetalLB assigns it an IP from the pool (e.g., `192.168.1.200`). That IP becomes the stable external address for the cluster's entry point, the one you put in DNS or `/etc/hosts`.
 
 ---
 
@@ -328,13 +307,13 @@ When Envoy Gateway creates a `LoadBalancer` service for a `Gateway` resource, Me
 
 cert-manager automates the full TLS certificate lifecycle in Kubernetes: issuance, storage, and renewal. It watches `Certificate` resources and writes the resulting cert and private key into a `kubernetes.io/tls` Secret that the Gateway can reference directly.
 
-Without cert-manager you would obtain certificates manually, base64-encode them into Secrets by hand, and remember to renew them before expiry — Let's Encrypt certs last 90 days. cert-manager eliminates all of that.
+Without cert-manager you would obtain certificates manually, base64-encode them into Secrets by hand, and remember to renew them before expiry, Let's Encrypt certs last 90 days. cert-manager eliminates all of that.
 
 ### Issuers
 
 An `Issuer` (namespace-scoped) or `ClusterIssuer` (cluster-wide) tells cert-manager which CA or ACME service to use.
 
-**ACME / Let's Encrypt** — for publicly reachable domains. cert-manager completes an ACME challenge (HTTP-01 or DNS-01) to prove domain ownership, then Let's Encrypt issues a globally trusted certificate.
+**ACME / Let's Encrypt**, for publicly reachable domains. cert-manager completes an ACME challenge (HTTP-01 or DNS-01) to prove domain ownership, then Let's Encrypt issues a globally trusted certificate.
 
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -355,7 +334,7 @@ spec:
                 namespace: envoy-gateway
 ```
 
-**Self-signed CA** — for private domains (homelab, internal services). cert-manager generates a self-signed root CA and issues certificates from it. You distribute the root CA to browsers or workstations that need to trust it.
+**Self-signed CA**, for private domains (homelab, internal services). cert-manager generates a self-signed root CA and issues certificates from it. You distribute the root CA to browsers or workstations that need to trust it.
 
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -406,14 +385,14 @@ listeners:
         from: All
 ```
 
-The Envoy proxy terminates TLS on port 443 using the managed certificate. HTTPRoutes are unchanged — from their perspective traffic arrives as plain HTTP from the proxy.
+The Envoy proxy terminates TLS on port 443 using the managed certificate. HTTPRoutes are unchanged, from their perspective traffic arrives as plain HTTP from the proxy.
 
 ### Complete HTTPS traffic flow
 
 ```
 Client
   ↓ HTTPS (TLS handshake, cert issued by cert-manager)
-Envoy Proxy :443 — TLS terminated here
+Envoy Proxy :443, TLS terminated here
   ↓ plain HTTP internally
 Gateway API route matching
   ↓
@@ -456,10 +435,10 @@ All of them read the same `GatewayClass`, `Gateway`, and `HTTPRoute` resources. 
 
 ## Further Reading
 
-- **[Kubernetes Gateway API documentation](https://gateway-api.sigs.k8s.io/)** — official spec and user guides, including the role model and route attachment rules
-- **[Envoy Gateway documentation](https://gateway.envoyproxy.io/docs/)** — installation, architecture, and feature reference
-- **[Envoy Proxy documentation](https://www.envoyproxy.io/docs/)** — deep dive into the proxy itself (xDS, filters, load balancing)
-- **[Gateway API concepts: GatewayClass, Gateway, HTTPRoute](https://gateway-api.sigs.k8s.io/concepts/api-overview/)** — visual explanation of the three-tier model
-- **[From Ingress to Gateway API](https://kubernetes.io/blog/2023/10/31/gateway-api-ga/)** — Kubernetes blog post on the GA of Gateway API v1
-- **[MetalLB documentation](https://metallb.universe.tf/)** — Layer 2 and BGP configuration, address pools, and troubleshooting
-- **[cert-manager documentation](https://cert-manager.io/docs/)** — issuers, Certificate resources, ACME solvers, and Gateway API integration
+- **[Kubernetes Gateway API documentation](https://gateway-api.sigs.k8s.io/)**, official spec and user guides, including the role model and route attachment rules
+- **[Envoy Gateway documentation](https://gateway.envoyproxy.io/docs/)**, installation, architecture, and feature reference
+- **[Envoy Proxy documentation](https://www.envoyproxy.io/docs/)**, deep dive into the proxy itself (xDS, filters, load balancing)
+- **[Gateway API concepts: GatewayClass, Gateway, HTTPRoute](https://gateway-api.sigs.k8s.io/concepts/api-overview/)**, visual explanation of the three-tier model
+- **[From Ingress to Gateway API](https://kubernetes.io/blog/2023/10/31/gateway-api-ga/)**, Kubernetes blog post on the GA of Gateway API v1
+- **[MetalLB documentation](https://metallb.universe.tf/)**, Layer 2 and BGP configuration, address pools, and troubleshooting
+- **[cert-manager documentation](https://cert-manager.io/docs/)**, issuers, Certificate resources, ACME solvers, and Gateway API integration

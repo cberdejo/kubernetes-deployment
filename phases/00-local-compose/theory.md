@@ -1,4 +1,4 @@
-# Phase 00 — Local Docker Compose
+# Phase 00 - Local Docker Compose
 
 - **Core concepts to master in this phase**:
   - **Containers**
@@ -22,7 +22,7 @@ Before moving into Kubernetes, you need to understand:
 - how to configure them without changing the code,
 - how to persist data outside the container lifecycle.
 
-Docker Compose allows you to define and run a complete microservices architecture locally. Every concept here — images, networking, volumes, environment variables — will reappear in Kubernetes, although the mechanisms are different.
+Docker Compose allows you to define and run a complete microservices architecture locally. Every concept here (images, networking, volumes, environment variables) will reappear in Kubernetes, although the mechanisms are different.
 
 ---
 
@@ -48,7 +48,7 @@ The frontend never talks to the database directly. The backend is the only compo
 
 ## 1. Containers and Images
 
-A **container** is an isolated process that runs with its own filesystem, network, and process tree. Unlike a virtual machine, it shares the host kernel — this makes containers lightweight and fast to start.
+A **container** is an isolated process that runs with its own filesystem, network, and process tree. Unlike a virtual machine, it shares the host kernel, this makes containers lightweight and fast to start.
 
 A **container image** is a read-only template used to create containers. It includes:
 
@@ -56,7 +56,7 @@ A **container image** is a read-only template used to create containers. It incl
 - application code and dependencies,
 - configuration for how the process should start.
 
-Images are **built in layers**. Each instruction in a Dockerfile creates a new layer. Layers are cached — if nothing changed in a layer, Docker reuses it from cache, which speeds up builds significantly.
+Images are **built in layers**. Each instruction in a Dockerfile creates a new layer. Layers are cached, if nothing changed in a layer, Docker reuses it from cache, which speeds up builds significantly.
 
 ---
 
@@ -72,7 +72,7 @@ A **Dockerfile** is a text file with instructions that Docker follows to build a
 | `WORKDIR` | Sets the working directory inside the container for subsequent instructions. |
 | `COPY` | Copies files from the host into the image. |
 | `RUN` | Executes a command during the build (e.g., install dependencies, compile code). |
-| `EXPOSE` | Documents which port the container listens on. It does **not** publish the port — that is done at runtime. |
+| `EXPOSE` | Documents which port the container listens on. It does **not** publish the port, that is done at runtime. |
 | `ENV` | Sets an environment variable that persists into the running container. |
 | `ARG` | Defines a build-time variable. Only available during the build, not at runtime. |
 | `CMD` | Specifies the default command to run when the container starts. |
@@ -112,12 +112,12 @@ This is essential for keeping production images small and secure:
 The backend is a TypeScript Node.js application that needs to be compiled to JavaScript:
 
 ```dockerfile
-# Stage 1: Base — shared setup
+# Stage 1: Base - shared setup
 FROM node:20-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json ./
 
-# Stage 2: Build — compile TypeScript
+# Stage 2: Build - compile TypeScript
 FROM base AS build
 RUN npm ci                        # all dependencies (including dev)
 COPY tsconfig.json ./tsconfig.json
@@ -169,9 +169,9 @@ CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile
 
 Key details:
 
-- `ARG VITE_API_URL` is a **build argument**. Vite inlines environment variables that start with `VITE_` into the JavaScript bundle at build time. This value cannot be changed at runtime — it's baked into the compiled assets.
+- `ARG VITE_API_URL` is a **build argument**. Vite inlines environment variables that start with `VITE_` into the JavaScript bundle at build time. This value cannot be changed at runtime, it's baked into the compiled assets.
 - The production image uses `caddy:2-alpine` instead of Node.js. Caddy is a lightweight web server that serves the static files and acts as a reverse proxy to the backend.
-- The final image contains only Caddy and the compiled HTML/CSS/JS — no Node.js, no source code, no `node_modules`.
+- The final image contains only Caddy and the compiled HTML/CSS/JS, no Node.js, no source code, no `node_modules`.
 
 ---
 
@@ -284,7 +284,7 @@ volumes:
   postgres_data:
 ```
 
-The data directory of PostgreSQL is stored in a named volume. When the container is destroyed and recreated, the volume survives — the data is preserved.
+The data directory of PostgreSQL is stored in a named volume. When the container is destroyed and recreated, the volume survives, the data is preserved.
 
 #### environment and env_file
 
@@ -318,7 +318,7 @@ postgres:
     start_period: 10s
 ```
 
-`depends_on` with a `condition: service_healthy` ensures the backend only starts after PostgreSQL is ready to accept connections — not just when the container is running, but when the health check passes.
+`depends_on` with a `condition: service_healthy` ensures the backend only starts after PostgreSQL is ready to accept connections, not just when the container is running, but when the health check passes.
 
 > Kubernetes **does not have `depends_on`**. Instead, applications must handle startup order themselves (e.g., retry database connections). This difference becomes relevant in Phase 02.
 
@@ -334,7 +334,7 @@ postgres://user:password@postgres:5432/chatdb
                          service name = hostname
 ```
 
-This is DNS-based service discovery — Docker's internal DNS resolves `postgres` to the IP address of the postgres container. This is conceptually the same as Kubernetes Services, which also use DNS names to route traffic between Pods.
+This is DNS-based service discovery, Docker's internal DNS resolves `postgres` to the IP address of the postgres container. This is conceptually the same as Kubernetes Services, which also use DNS names to route traffic between Pods.
 
 Only ports explicitly published with `ports` are accessible from the host machine. Internal communication between containers does not require port mapping.
 
@@ -348,7 +348,7 @@ Understanding the difference is critical:
 |---|---|---|
 | When available | During `docker build` only | When the container runs |
 | Defined in | `ARG` in Dockerfile, `args` in Compose | `ENV` in Dockerfile, `environment` / `env_file` in Compose |
-| Can change without rebuilding | No — requires a new build | Yes — just restart the container |
+| Can change without rebuilding | No, requires a new build | Yes, just restart the container |
 | Use case | Values baked into compiled output (e.g., `VITE_API_URL`) | Database credentials, feature flags, service URLs |
 
 In this application:
@@ -373,4 +373,4 @@ This phase teaches:
 | Startup dependencies | `depends_on` + healthcheck | Init containers, readiness probes, retry logic |
 | Reverse proxy | Caddy in the frontend container | Ingress / Gateway API |
 
-Every concept learned here transfers directly to Kubernetes. The mechanisms change — Kubernetes is declarative, distributed, and self-healing — but the underlying problems (how do services find each other? where does data live? how is configuration injected?) remain the same.
+Every concept learned here transfers directly to Kubernetes. The mechanisms change (Kubernetes is declarative, distributed, and self-healing) but the underlying problems (how do services find each other? where does data live? how is configuration injected?) remain the same.

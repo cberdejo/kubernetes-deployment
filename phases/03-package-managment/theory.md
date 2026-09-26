@@ -1,4 +1,4 @@
-## Phase 03 — Package Management & Templating 
+## Phase 03 - Package Management & Templating 
 
 The goal of this phase is to **transition from static YAML files to dynamic templates using Helm**, gaining an understanding of how to package, configure, and distribute Kubernetes applications efficiently. 
 
@@ -118,5 +118,5 @@ Mastering Helm now is strictly necessary for the upcoming phases. The next tools
 
 ## Further Reading
 
-- **[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)** — step-by-step tutorial for building a Helm chart from scratch
-- **[Awesome Helm](https://github.com/cdwv/awesome-helm)** — curated list of Helm resources, tools, plugins, and community charts
+- **[Create Your First Helm Chart](https://techdocs.broadcom.com/us/en/vmware-tanzu/bitnami-secure-images/bitnami-secure-images/services/bsi-doc/apps-tutorials-create-first-helm-chart-index.html)**, step-by-step tutorial for building a Helm chart from scratch
+- **[Awesome Helm](https://github.com/cdwv/awesome-helm)**, curated list of Helm resources, tools, plugins, and community charts
