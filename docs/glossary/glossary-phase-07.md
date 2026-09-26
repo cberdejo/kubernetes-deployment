@@ -3,14 +3,14 @@
 ### Identity Provider (IdP)
 
 A centralized service that manages user identities, credentials, and authentication decisions for multiple applications.
-Instead of each application implementing its own login mechanism, a single IdP handles user creation, password policies, MFA enforcement, and session management — one place to grant or revoke access across all services.
+Instead of each application implementing its own login mechanism, a single IdP handles user creation, password policies, MFA enforcement, and session management, one place to grant or revoke access across all services.
 
 ---
 
 ### Forward Authentication
 
 An architectural pattern where a reverse proxy delegates authentication to an external service before forwarding requests to the backend.
-The proxy sends a subrequest to the auth service; if the user has a valid session, the request proceeds — otherwise the proxy redirects to a login page. The backend application never participates in the authentication challenge.
+The proxy sends a subrequest to the auth service; if the user has a valid session, the request proceeds, otherwise the proxy redirects to a login page. The backend application never participates in the authentication challenge.
 
 ---
 
@@ -44,14 +44,14 @@ Its flow-based architecture models every authentication process as a composable 
 
 ### Flow (Authentik)
 
-An ordered sequence of stages that models a complete authentication process in Authentik — such as login, enrollment, password recovery, or logout.
+An ordered sequence of stages that models a complete authentication process in Authentik, such as login, enrollment, password recovery, or logout.
 Policies bound to each stage determine whether it executes, making the flow adaptive (for example, requiring MFA only for users outside a trusted network).
 
 ---
 
 ### Stage (Authentik)
 
-An individual step within a flow — for example, showing a username prompt, verifying a password, validating a TOTP code, or sending an email.
+An individual step within a flow, for example, showing a username prompt, verifying a password, validating a TOTP code, or sending an email.
 Stages are reusable building blocks that can be arranged in different flows and gated by policies.
 
 ---
@@ -66,7 +66,7 @@ Policies enable conditional logic in flows: skip MFA for trusted networks, requi
 ### Outpost (Authentik)
 
 A component that extends Authentik's authentication capabilities to the reverse proxy layer.
-The proxy outpost implements the forward authentication protocol — it receives subrequests from the reverse proxy, validates session cookies, and returns either an approval (HTTP 200 with identity headers) or a redirect to the login page.
+The proxy outpost implements the forward authentication protocol, it receives subrequests from the reverse proxy, validates session cookies, and returns either an approval (HTTP 200 with identity headers) or a redirect to the login page.
 
 ---
 
@@ -86,7 +86,7 @@ It binds an application to an outpost and defines the external hostname and auth
 
 ### SecurityPolicy (Envoy Gateway)
 
-An Envoy Gateway custom resource that attaches security rules — such as external authentication, CORS, or JWT validation — to a Gateway or HTTPRoute.
+An Envoy Gateway custom resource that attaches security rules, such as external authentication, CORS, or JWT validation, to a Gateway or HTTPRoute.
 In this phase it is used to attach ext-auth rules that consult the Authentik outpost before allowing requests through to backend services.
 
 ---
@@ -115,13 +115,13 @@ In this phase, a `ReferenceGrant` in the `authentik` namespace allows `SecurityP
 ### Outpost Callback Route
 
 A dedicated HTTPRoute that handles the OAuth callback path (`/outpost.goauthentik.io/`) without the `SecurityPolicy` applied.
-This prevents a redirect loop — the callback is the step that establishes the session, so running ext-auth on it would trigger an infinite authentication cycle.
+This prevents a redirect loop, the callback is the step that establishes the session, so running ext-auth on it would trigger an infinite authentication cycle.
 
 ---
 
 ### MFA (Multi-Factor Authentication)
 
-An authentication method that requires two or more verification factors — typically something the user knows (password) plus something they have (TOTP code, security key) or are (biometric).
+An authentication method that requires two or more verification factors, typically something the user knows (password) plus something they have (TOTP code, security key) or are (biometric).
 A centralized IdP can enforce MFA for all users before any service is reachable.
 
 ---
@@ -149,7 +149,7 @@ Authentik and Keycloak support it natively; Authelia does not.
 
 ### LDAP (Lightweight Directory Access Protocol)
 
-A protocol for accessing and maintaining directory services — a hierarchical database of users, groups, and organizational units.
+A protocol for accessing and maintaining directory services, a hierarchical database of users, groups, and organizational units.
 Authentik can expose an LDAP interface (provider) for legacy applications, while Authelia can only consume an existing LDAP directory as a user backend.
 
 ---
@@ -164,21 +164,21 @@ When a user is created or disabled in Authentik, SCIM can automatically sync tha
 ### Session Cookie
 
 An HTTP cookie set by the IdP after successful authentication that identifies the user's active session.
-The forward auth flow depends on this cookie — the reverse proxy forwards it to the auth service, which validates it and either approves or rejects the request.
+The forward auth flow depends on this cookie, the reverse proxy forwards it to the auth service, which validates it and either approves or rejects the request.
 
 ---
 
 ### Credential Sprawl
 
 The problem that arises when each application manages its own credentials, leading to separate usernames and passwords across services.
-Users reuse or forget passwords, and there is no central place to enforce password policies or revoke access — a key motivation for deploying a centralized IdP.
+Users reuse or forget passwords, and there is no central place to enforce password policies or revoke access, a key motivation for deploying a centralized IdP.
 
 ---
 
 ### Authelia
 
 A lightweight open-source authentication gateway written in Go (~30 MB memory), focused on forward authentication and OIDC.
-It is not a full IdP — it reads users from a YAML file or LDAP directory and provides the auth portal and policy enforcement layer.
+It is not a full IdP, it reads users from a YAML file or LDAP directory and provides the auth portal and policy enforcement layer.
 
 ---
 

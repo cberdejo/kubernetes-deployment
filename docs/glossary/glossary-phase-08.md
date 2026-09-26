@@ -2,7 +2,7 @@
 
 ### Container Registry
 
-An HTTP service that stores and distributes OCI artifacts — primarily container images, but also Helm charts and other packaged content.
+An HTTP service that stores and distributes OCI artifacts, primarily container images, but also Helm charts and other packaged content.
 Clients interact with it via the OCI Distribution Specification: `docker push` uploads images, and container runtimes like containerd pull them to run workloads.
 
 ---
@@ -10,20 +10,20 @@ Clients interact with it via the OCI Distribution Specification: `docker push` u
 ### OCI (Open Container Initiative)
 
 A Linux Foundation project that defines three open standards for containers: the Image Spec (image format), the Runtime Spec (how containers execute), and the Distribution Spec (the registry HTTP API).
-These specifications ensure interoperability — the same image works across Docker, containerd, CRI-O, and any compliant registry.
+These specifications ensure interoperability, the same image works across Docker, containerd, CRI-O, and any compliant registry.
 
 ---
 
 ### OCI Distribution Specification
 
 The HTTP API standard that all compliant container registries implement under the `/v2/` path.
-It defines how clients push, pull, list, and delete artifacts. When you run `docker push`, Docker speaks this protocol — the same protocol whether the target is Docker Hub, Harbor, GHCR, or Zot.
+It defines how clients push, pull, list, and delete artifacts. When you run `docker push`, Docker speaks this protocol, the same protocol whether the target is Docker Hub, Harbor, GHCR, or Zot.
 
 ---
 
 ### OCI Artifact
 
-Any content stored in an OCI-compliant registry using the manifest/blob format — not limited to container images.
+Any content stored in an OCI-compliant registry using the manifest/blob format, not limited to container images.
 By changing the `mediaType` field in the manifest, registries can store Helm charts, signatures, SBOMs, or WASM modules. This is how `helm push` works with OCI registries.
 
 ---
@@ -31,7 +31,7 @@ By changing the `mediaType` field in the manifest, registries can store Helm cha
 ### Image Manifest
 
 A JSON document that lists a container image's layers, configuration, and media types. Its SHA-256 digest is the image's immutable identity.
-Tags point to manifests — since tags are mutable, the manifest digest is the only truly reliable reference to a specific image.
+Tags point to manifests, since tags are mutable, the manifest digest is the only truly reliable reference to a specific image.
 
 ---
 
@@ -45,7 +45,7 @@ Two images that share a layer store it only once in the registry, making pushes 
 ### Image Tag
 
 A human-readable label that points to a specific image manifest in the registry (e.g., `frontend:1.0.0`).
-Tags are mutable — the same tag can be reassigned to a different manifest at any time — which is why digests are the only immutable reference.
+Tags are mutable, the same tag can be reassigned to a different manifest at any time, which is why digests are the only immutable reference.
 
 ---
 
@@ -65,14 +65,14 @@ It runs as a multi-component system: nginx (proxy), Core (auth and API), Registr
 
 ### Harbor Project
 
-Harbor's unit of access control and image organization. Every image lives inside a project (e.g., `harbor.local/todo/frontend:1.0.0` — `todo` is the project).
+Harbor's unit of access control and image organization. Every image lives inside a project (e.g., `harbor.local/todo/frontend:1.0.0`, `todo` is the project).
 Projects can be public (anyone can pull) or private (credentials required for pulls), and access is managed per project.
 
 ---
 
 ### Robot Account
 
-A Harbor service account designed for programmatic access — CI pipelines, k3s containerd, or automation scripts.
+A Harbor service account designed for programmatic access, CI pipelines, k3s containerd, or automation scripts.
 Robot accounts are scoped to specific projects with limited permissions (pull-only, push-only, or both), use token-based credentials, and are named with a `robot$` prefix for easy identification in audit logs.
 
 ---
@@ -149,14 +149,14 @@ The chart tarball becomes a blob, and Helm creates a manifest with Helm-specific
 
 ### Supply Chain Visibility
 
-The ability to trace every artifact running in a cluster back to its source — knowing exactly what image bytes a pod is running and where they came from.
+The ability to trace every artifact running in a cluster back to its source, knowing exactly what image bytes a pod is running and where they came from.
 Public registry tags are mutable (the publisher can overwrite them), so a private registry with known digests provides a verifiable chain of custody.
 
 ---
 
 ### Rate Limiting (Docker Hub)
 
-Restrictions on how many image pulls a user can perform within a time window — Docker Hub allows 100 pulls per 6 hours for anonymous users, 200 for authenticated free accounts.
+Restrictions on how many image pulls a user can perform within a time window, Docker Hub allows 100 pulls per 6 hours for anonymous users, 200 for authenticated free accounts.
 A private registry eliminates this dependency, ensuring image availability during incidents when pods restart frequently.
 
 ---
@@ -171,11 +171,11 @@ The first pull fetches the image from upstream and caches it locally; subsequent
 ### Zot
 
 A lightweight, OCI-native container registry written in Go (~30 MB memory) that focuses solely on the OCI Distribution Spec.
-It has no built-in UI, user management, or scanning — ideal for edge deployments, IoT, or as a minimal pull-through cache.
+It has no built-in UI, user management, or scanning, ideal for edge deployments, IoT, or as a minimal pull-through cache.
 
 ---
 
 ### Docker Distribution (CNCF Distribution)
 
 The open-source registry implementation (CNCF sandbox) that Docker Hub and Harbor both build upon.
-It provides a raw, standards-compliant OCI registry with no UI or access control — a building block rather than a product.
+It provides a raw, standards-compliant OCI registry with no UI or access control, a building block rather than a product.

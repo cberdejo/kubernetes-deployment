@@ -73,17 +73,7 @@ The ready-to-use `talconfig.yaml` is at `docs/cluster-setup/talos/talconfig.yaml
 
 ### talhelper workflow
 
-```
-talconfig.yaml  ──talhelper genconfig──►  clusterconfig/
-                                            ├── talos-k8s-lab-controlplane-1.yaml
-                                            └── talos-k8s-lab-worker-1.yaml
-                                                        │
-                                         talhelper gencommand apply
-                                                        │
-                                                        ▼
-                                              talosctl apply-config
-                                              (to each node by IP)
-```
+Running `talhelper genconfig` reads `talconfig.yaml` and produces per-node configuration files inside `clusterconfig/` (e.g. `talos-k8s-lab-controlplane-1.yaml` and `talos-k8s-lab-worker-1.yaml`). Then `talhelper gencommand apply` generates the `talosctl apply-config` commands that push each configuration to its corresponding node by IP.
 
 ---
 

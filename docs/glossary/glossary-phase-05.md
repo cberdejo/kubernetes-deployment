@@ -3,7 +3,7 @@
 ### PersistentVolume (PV)
 
 A piece of storage in the cluster provisioned by an administrator or dynamically by a StorageClass.
-A PV has a lifecycle independent of any Pod — it exists before a workload claims it and can outlive it.
+A PV has a lifecycle independent of any Pod, it exists before a workload claims it and can outlive it.
 
 ---
 

@@ -74,7 +74,7 @@ In Layer 2 mode, MetalLB elects one node to own each service IP and responds to 
 
 ### cert-manager
 
-A Kubernetes add-on that automates the full lifecycle of TLS certificates — issuance, renewal, and storage.
+A Kubernetes add-on that automates the full lifecycle of TLS certificates, issuance, renewal, and storage.
 It watches `Certificate` resources, requests certificates from a configured issuer (such as Let's Encrypt or a self-signed CA), and stores the result as a Kubernetes `Secret` of type `kubernetes.io/tls`.
 
 ---
@@ -88,7 +88,7 @@ Common issuers include ACME (Let's Encrypt) for public domains and self-signed C
 
 ### Certificate (cert-manager)
 
-A cert-manager resource that declares a desired TLS certificate — including the hostnames it should cover and which `ClusterIssuer` or `Issuer` should sign it.
+A cert-manager resource that declares a desired TLS certificate, including the hostnames it should cover and which `ClusterIssuer` or `Issuer` should sign it.
 cert-manager reconciles this resource by requesting the certificate and writing the resulting key pair into a Kubernetes `Secret`.
 
 ---

@@ -152,14 +152,13 @@ Use persistent volumes backed by distributed storage for Kubernetes workloads.
 - Centralize and secure external traffic management
 - Replace manual `NodePort` exposure with domain-based routing policies
 - Terminate TLS automatically with signed certificates
-- Introduce Terraform
 
 **Technologies**
 
 - Envoy Gateway
 - Kubernetes Gateway API
 - cert-manager (automatic TLS via Let's Encrypt or self-signed CA)
-- MetalLB (bare metal / on-prem clusters only — provides `LoadBalancer` IPs without a cloud provider)
+- MetalLB (bare metal / on-prem clusters only, provides `LoadBalancer` IPs without a cloud provider)
 
 **Expected Outcome**
 
@@ -236,8 +235,8 @@ Automatically synchronize cluster configuration from version-controlled manifest
 
 - `kube-prometheus-stack` (Prometheus + Grafana + Alertmanager)
 - Loki (log aggregation)
-- Grafana Alloy (unified collector — ships logs to Loki and metrics to Prometheus)
-- metrics-server (prerequisite — enables `kubectl top` and Horizontal Pod Autoscaler)
+- Grafana Alloy (unified collector, ships logs to Loki and metrics to Prometheus)
+- metrics-server (prerequisite, enables `kubectl top` and Horizontal Pod Autoscaler)
 
 **Expected Outcome**
 

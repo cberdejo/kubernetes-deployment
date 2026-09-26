@@ -1,6 +1,6 @@
 # Glossary
 
-Quick reference index — click a phase to open its glossary.
+Quick reference index, click a phase to open its glossary.
 
 | Phase | Topic | Terms |
 |-------|-------|-------|
