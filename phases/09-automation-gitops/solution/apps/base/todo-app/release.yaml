@@ -1,0 +1,86 @@
+# Environment-independent configuration. Image tags and replica counts are
+# patched per environment in apps/<cluster>/todo-app-values.yaml.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: todo-app
+  namespace: todo
+spec:
+  interval: 10m
+  # Same release name as Phases 04–08: Service names and the authentik
+  # provider configuration stay valid.
+  releaseName: my-app
+  chartRef:
+    kind: OCIRepository
+    name: todo-app
+    namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  # Reverts manual changes made with kubectl to objects rendered by the chart
+  # (try it in Step 11 of tasks.md).
+  driftDetection:
+    mode: enabled
+  values:
+    global:
+      imagePullSecrets: []
+    frontend:
+      imagePullPolicy: IfNotPresent
+      containerPort: 80
+      service:
+        type: ClusterIP
+        port: 3000
+        targetPort: 80
+      config:
+        viteApiUrl: "/api/v1"
+        backendUpstream: ""
+      gatewayRoute:
+        enabled: true
+        hostname: todo.local
+        gateway:
+          name: public-gateway
+          namespace: envoy-gateway
+        pathPrefix: /
+      auth:
+        enabled: true
+    backend:
+      imagePullPolicy: IfNotPresent
+      containerPort: 8080
+      service:
+        type: ClusterIP
+        port: 8080
+        targetPort: 8080
+      config:
+        host: "0.0.0.0"
+        port: "8080"
+        postgresHost: ""
+        postgresPort: "5432"
+    postgres:
+      replicaCount: 1
+      image:
+        repository: postgres
+        tag: "15.10"
+      imagePullPolicy: IfNotPresent
+      containerPort: 5432
+      service:
+        type: ClusterIP
+        port: 5432
+        targetPort: 5432
+      secretName: "todo-db-secret"
+      # The chart's pre-install hook generates todo-db-secret in-cluster once
+      # and never rotates it (Phase 05+ behaviour). Nothing secret lives in Git.
+      bootstrap:
+        enabled: true
+        credentials:
+          user: admin
+          database: domain
+      persistence:
+        enabled: true
+        size: 1Gi
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: longhorn

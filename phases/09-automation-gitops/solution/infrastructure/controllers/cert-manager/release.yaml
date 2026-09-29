@@ -1,0 +1,23 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  interval: 30m
+  releaseName: cert-manager
+  chartRef:
+    kind: OCIRepository
+    name: cert-manager
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    crds:
+      enabled: true
+      # Deleting the HelmRelease must never delete every Certificate in the cluster.
+      keep: true

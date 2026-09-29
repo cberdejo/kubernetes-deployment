@@ -1,0 +1,11 @@
+# Chart version deployed in prod. Like the image tags, it is rewritten by the
+# image-automation-controller when a newer 0.x chart lands in Harbor, so every
+# chart upgrade is a commit in Git. Do not remove the comment.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: todo-app
+  namespace: flux-system
+spec:
+  ref:
+    tag: "0.1.0" # {"$imagepolicy": "flux-system:todo-app-chart:tag"}

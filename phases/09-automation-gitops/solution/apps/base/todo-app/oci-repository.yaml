@@ -1,0 +1,20 @@
+# The canonical chart (application/chart), published to Harbor by
+# scripts/publish-chart.sh. Lives in flux-system because that is where the
+# homelab CA bundle is available for TLS verification.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: todo-app
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: oci://harbor.local/todo/todo-app
+  ref:
+    # Pinned: every environment decides its chart version with a commit.
+    # apps/prod overrides it, and image automation bumps it there.
+    tag: "0.1.0"
+  certSecretRef:
+    name: homelab-ca-bundle
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy

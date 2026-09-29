@@ -1,0 +1,36 @@
+# image-reflector-controller lists the tags of each repository in Harbor.
+# The todo project is public, so no credentials are needed — only CA trust.
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: todo-frontend
+  namespace: flux-system
+spec:
+  interval: 5m
+  image: harbor.local/todo/frontend
+  certSecretRef:
+    name: homelab-ca-bundle
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: todo-backend
+  namespace: flux-system
+spec:
+  interval: 5m
+  image: harbor.local/todo/backend
+  certSecretRef:
+    name: homelab-ca-bundle
+---
+# A Helm chart in an OCI registry is just another OCI artifact with tags,
+# so the same controller can track new chart versions.
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: todo-app-chart
+  namespace: flux-system
+spec:
+  interval: 5m
+  image: harbor.local/todo/todo-app
+  certSecretRef:
+    name: homelab-ca-bundle

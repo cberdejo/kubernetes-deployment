@@ -10,3 +10,7 @@ node_modules
 
 # Helm dependencies (regenrate with helm dependency update)
 charts/
+
+# Sealed Secrets private key backups — must never reach Git
+sealed-secrets-key*.yaml
+*.key.backup.yaml

@@ -1,0 +1,37 @@
+# Rewrites the "$imagepolicy" markers under apps/prod (image tags and chart
+# version) and pushes a commit to main. Flux then reconciles that commit like
+# any other change: Git stays the single source of truth, even for automated
+# updates.
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: todo-app
+  namespace: flux-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: |
+        chore(todo-app): update images and chart [phase-09]
+
+        Automation: {{ .AutomationObject }}
+        {{ range $resource, $changes := .Changed.Objects -}}
+        - {{ $resource.Kind }}/{{ $resource.Name }}
+        {{- range $_, $change := $changes }}
+          {{ $change.OldValue }} -> {{ $change.NewValue }}
+        {{- end }}
+        {{ end -}}
+    push:
+      branch: main
+  update:
+    path: ./phases/09-automation-gitops/solution/apps/prod
+    strategy: Setters

@@ -1,0 +1,9 @@
+# The Longhorn UI routes live in the platform layer (not with the Longhorn
+# controller) because they depend on authentik for forward-auth.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: longhorn
+resources:
+  - route.yaml
+  - outpost-route.yaml
+  - security-policy.yaml

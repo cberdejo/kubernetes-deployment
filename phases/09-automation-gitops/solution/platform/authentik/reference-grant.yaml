@@ -1,0 +1,37 @@
+# Allows SecurityPolicies and HTTPRoutes in these namespaces to reach the
+# authentik-server Service for forward-auth (same as Phase 07–08).
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: authentik-ext-auth-todo
+  namespace: authentik
+spec:
+  from:
+    - group: gateway.envoyproxy.io
+      kind: SecurityPolicy
+      namespace: todo
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: todo
+  to:
+    - group: ""
+      kind: Service
+      name: authentik-server
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: authentik-ext-auth-longhorn
+  namespace: authentik
+spec:
+  from:
+    - group: gateway.envoyproxy.io
+      kind: SecurityPolicy
+      namespace: longhorn
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: longhorn
+  to:
+    - group: ""
+      kind: Service
+      name: authentik-server
