@@ -1,6 +1,6 @@
 # Flux needs to trust the homelab CA to pull the chart and scan images from
 # https://harbor.local. A Certificate issued by the CA issuer gets the CA cert
-# in its "ca.crt" key, which is exactly what certSecretRef expects — this
+# in its "ca.crt" key, which is exactly what certSecretRef expects; this
 # copies the public CA into flux-system without exposing the CA private key.
 #
 # The Secret also holds tls.crt/tls.key (a leaf certificate, not the CA key).

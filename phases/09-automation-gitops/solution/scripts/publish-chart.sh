@@ -42,7 +42,7 @@ CHART_VERSION="${CHART_VERSION:-$CHART_FILE_VERSION}"
 info "Logging in to $HARBOR_HOST OCI registry"
 echo "$HARBOR_ADMIN_PASSWORD" | helm registry login "$HARBOR_HOST" \
   --username "$HARBOR_USER" --password-stdin \
-  || err "Helm registry login failed — did you run scripts/trust-harbor-ca.sh?"
+  || err "Helm registry login failed. Did you run scripts/trust-harbor-ca.sh?"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT

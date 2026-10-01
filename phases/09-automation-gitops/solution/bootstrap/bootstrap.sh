@@ -3,7 +3,7 @@
 # Flux at this repository, and lets Flux build the whole platform from Git.
 #
 # Compare with Phase 08: there, this script ran `helm upgrade --install` eight
-# times in the right order. Here it only installs Flux — the order, the
+# times in the right order. Here it only installs Flux; the order, the
 # versions and the configuration all live in Git and Flux applies them.
 # The remaining imperative steps are the ones GitOps cannot do by definition:
 # creating the first credentials, trusting the CA on the node, and seeding Harbor.
@@ -44,7 +44,7 @@ wait_ks() {
   done
   kubectl wait kustomization/"$name" -n "$FLUX_NS" \
     --for=condition=Ready --timeout="$timeout" \
-    || err "Kustomization/$name not Ready — inspect with: kubectl describe kustomization $name -n $FLUX_NS"
+    || err "Kustomization/$name not Ready. Inspect with: kubectl describe kustomization $name -n $FLUX_NS"
 }
 
 # Asks Flux to reconcile an object now instead of waiting for its interval.
@@ -91,7 +91,7 @@ wait_platform_secrets() {
 
 # ── Load configuration ────────────────────────────────────────────
 step "Loading configuration"
-[[ -f "$ENV_FILE" ]] || err ".env not found — copy .env.example to .env and fill in your values."
+[[ -f "$ENV_FILE" ]] || err ".env not found. Copy .env.example to .env and fill in your values."
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 : "${GITHUB_USER:?GITHUB_USER not set in .env}"
@@ -111,7 +111,7 @@ HARBOR_USER="${HARBOR_USER:-admin}"
 # ── Check prerequisites ───────────────────────────────────────────
 step "Checking prerequisites"
 for tool in kubectl helm kubeseal docker curl; do
-  command -v "$tool" &>/dev/null || err "$tool not found — install it first."
+  command -v "$tool" &>/dev/null || err "$tool not found. Install it first."
 done
 kubectl cluster-info &>/dev/null || err "Cannot reach cluster. Check: kubectl config current-context"
 info "Cluster: $(kubectl config current-context)"
@@ -119,16 +119,16 @@ info "Cluster: $(kubectl config current-context)"
 SERVER_MINOR="$(kubectl version -o json | sed -n '/serverVersion/,/}/s/.*"minor": *"\([0-9]*\).*/\1/p')"
 [[ -n "$SERVER_MINOR" && "$SERVER_MINOR" -ge 34 ]] \
   || err "Flux 2.9 requires Kubernetes >= 1.34 (server minor version: ${SERVER_MINOR:-unknown}). Upgrade k3s first."
-info "Kubernetes 1.${SERVER_MINOR} — supported by Flux 2.9"
+info "Kubernetes 1.${SERVER_MINOR}, supported by Flux 2.9"
 
 if ! iscsiadm --version &>/dev/null; then
   warn "iscsiadm not found on this machine. Longhorn needs open-iscsi on every node:"
   warn "  sudo apt install open-iscsi && sudo systemctl enable --now iscsid"
 fi
 if command -v flux &>/dev/null; then
-  info "flux CLI $(flux version --client 2>/dev/null | head -1) — optional, handy for debugging"
+  info "flux CLI $(flux version --client 2>/dev/null | head -1) (optional, handy for debugging)"
 else
-  warn "flux CLI not installed — optional, but recommended: curl -s https://fluxcd.io/install.sh | sudo bash"
+  warn "flux CLI not installed (optional, but recommended): curl -s https://fluxcd.io/install.sh | sudo bash"
 fi
 
 # ── Step 1: Git credentials for Flux ──────────────────────────────
@@ -146,7 +146,7 @@ if [[ -f "$SEALED_SECRETS_KEY_BACKUP" ]]; then
   bash "$SOLUTION/scripts/restore-sealed-secrets-key.sh" "$SEALED_SECRETS_KEY_BACKUP"
   info "Existing SealedSecrets in Git will decrypt in this cluster"
 else
-  warn "No backup at $SEALED_SECRETS_KEY_BACKUP — the controller will generate a new key."
+  warn "No backup at $SEALED_SECRETS_KEY_BACKUP. The controller will generate a new key."
   warn "Any SealedSecret already in Git will need to be re-sealed (handled below)."
 fi
 
@@ -156,13 +156,13 @@ helm upgrade --install flux-operator \
   oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
   --version "$FLUX_OPERATOR_VERSION" \
   -n "$FLUX_NS" --wait --timeout 5m
-info "Flux Operator installed — Flux will adopt this release from Git"
+info "Flux Operator installed; Flux will adopt this release from Git"
 
 # ── Step 4: FluxInstance ──────────────────────────────────────────
 step "Creating the FluxInstance"
 kubectl apply -f "$SOLUTION/clusters/prod/flux-system/flux-instance.yaml"
 kubectl wait fluxinstance/flux -n "$FLUX_NS" --for=condition=Ready --timeout=10m \
-  || err "FluxInstance not Ready — check: kubectl describe fluxinstance flux -n $FLUX_NS"
+  || err "FluxInstance not Ready. Check: kubectl describe fluxinstance flux -n $FLUX_NS"
 info "Flux is running and syncing $(kubectl get fluxinstance flux -n "$FLUX_NS" -o jsonpath='{.spec.sync.url}')"
 
 # ── Step 5: Infrastructure layers ─────────────────────────────────
@@ -180,7 +180,7 @@ if platform_secrets_ready; then
   info "authentik-secrets and harbor-secrets already decrypted in the cluster"
 else
   if compgen -G "$SOLUTION/platform-secrets/*.yaml" >/dev/null; then
-    info "Sealed files found in Git — waiting for the controller to decrypt them"
+    info "Sealed files found in Git, waiting for the controller to decrypt them"
     reconcile kustomization/platform-secrets "$FLUX_NS"
     wait_platform_secrets 180 || true
   fi
@@ -192,7 +192,7 @@ else
     reconcile gitrepository/flux-system "$FLUX_NS"
     reconcile kustomization/platform-secrets "$FLUX_NS"
     wait_platform_secrets 300 no-fail-fast \
-      || err "Platform secrets not decrypted — check: kubectl get sealedsecrets -A"
+      || err "Platform secrets not decrypted. Check: kubectl get sealedsecrets -A"
   fi
   info "authentik-secrets and harbor-secrets decrypted"
 fi
@@ -213,7 +213,7 @@ wait_ks platform 25m
 
 # ── Step 9: Seed Harbor ───────────────────────────────────────────
 step "Seeding Harbor with the first images and chart"
-# Seeding runs on this machine, so harbor.local must resolve here — the
+# Seeding runs on this machine, so harbor.local must resolve here; the
 # CoreDNS entries only help Pods inside the cluster.
 GATEWAY_IP="$(kubectl get configmap cluster-settings -n "$FLUX_NS" -o jsonpath='{.data.GATEWAY_IP}')"
 RESOLVED_IP="$(getent hosts "$HARBOR_HOST" | awk '{ print $1; exit }' || true)"
@@ -272,5 +272,5 @@ info "  Authentik:    https://authentik.local  (akadmin / your bootstrap passwor
 echo ""
 info "Next steps:"
 info "  1. Configure the authentik providers (same as Phase 07)"
-info "  2. Release a new image and watch Flux deploy it — tasks.md, Step 10"
+info "  2. Release a new image and watch Flux deploy it (tasks.md, Step 10)"
 warn "Store $SEALED_SECRETS_KEY_BACKUP somewhere safe and offline."

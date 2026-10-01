@@ -33,9 +33,9 @@ validate_safe() {
   [[ "$value" =~ ^[A-Za-z0-9._~-]+$ ]] || err "$name must only contain: A-Z a-z 0-9 . _ ~ -  (tip: openssl rand -hex 24)"
 }
 
-command -v kubeseal &>/dev/null || err "kubeseal not found — install it first (see Phase 04)."
+command -v kubeseal &>/dev/null || err "kubeseal not found. Install it first (see Phase 04)."
 command -v kubectl  &>/dev/null || err "kubectl not found"
-[[ -f "$ENV_FILE" ]] || err ".env not found — copy bootstrap/.env.example to bootstrap/.env first."
+[[ -f "$ENV_FILE" ]] || err ".env not found. Copy bootstrap/.env.example to bootstrap/.env first."
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 

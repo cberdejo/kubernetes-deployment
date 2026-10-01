@@ -35,7 +35,7 @@ command -v docker &>/dev/null || err "docker CLI not found"
 info "Logging in to $HARBOR_HOST"
 echo "$HARBOR_ADMIN_PASSWORD" | docker login "$HARBOR_HOST" \
   --username "$HARBOR_USER" --password-stdin \
-  || err "Docker login failed — did you run scripts/trust-harbor-ca.sh?"
+  || err "Docker login failed. Did you run scripts/trust-harbor-ca.sh?"
 
 # ── Tag and push ─────────────────────────────────────────────────
 IMAGES=("frontend" "backend")
@@ -46,7 +46,7 @@ for img in "${IMAGES[@]}"; do
 
   info "Tagging $LOCAL → $REMOTE"
   docker tag "$LOCAL" "$REMOTE" \
-    || err "Failed to tag $LOCAL — is the image built locally?"
+    || err "Failed to tag $LOCAL. Is the image built locally?"
 
   info "Pushing $REMOTE"
   docker push "$REMOTE" \

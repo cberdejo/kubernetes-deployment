@@ -1,6 +1,6 @@
 # k3s-specific: CoreDNS imports every "*.server" key of this ConfigMap as an
 # extra server block. It lets pods (Flux source-controller, image-reflector)
-# resolve harbor.local — /etc/hosts on your laptop is invisible to the cluster.
+# resolve harbor.local: /etc/hosts on your laptop is invisible to the cluster.
 #
 # The zones are the exact hostnames on purpose: a generic "local" zone would
 # also capture *.cluster.local and break every in-cluster DNS lookup.

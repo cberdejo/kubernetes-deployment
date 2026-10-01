@@ -27,7 +27,7 @@ CA_CERT="$(kubectl get secret homelab-ca-secret -n cert-manager \
   -o jsonpath='{.data.ca\.crt}' 2>/dev/null)" \
   || err "Could not read homelab-ca-secret in cert-manager namespace"
 
-[[ -n "$CA_CERT" ]] || err "CA cert is empty — is cert-manager running?"
+[[ -n "$CA_CERT" ]] || err "CA cert is empty. Is cert-manager running?"
 CA_PEM="$(echo "$CA_CERT" | base64 -d)"
 
 # ── System trust store (Ubuntu/Debian) ──────────────────────────
@@ -47,7 +47,7 @@ CA_PATH="/etc/rancher/k3s/harbor-ca.crt"
 echo "$CA_PEM" > "$CA_PATH"
 
 if [[ -f /etc/rancher/k3s/registries.yaml ]]; then
-  info "Existing registries.yaml found — backing it up before replacing it"
+  info "Existing registries.yaml found, backing it up before replacing it"
   cp /etc/rancher/k3s/registries.yaml "/etc/rancher/k3s/registries.yaml.bak.$(date +%s)"
 fi
 
@@ -68,4 +68,4 @@ systemctl restart k3s
 info "Waiting for k3s to be ready"
 until kubectl get nodes &>/dev/null 2>&1; do sleep 2; done
 
-info "Done — harbor.local is now trusted by Docker, Helm, and k3s containerd"
+info "Done: harbor.local is now trusted by Docker, Helm, and k3s containerd"

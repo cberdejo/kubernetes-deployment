@@ -28,7 +28,7 @@ sed -E '/^[[:space:]]+(resourceVersion|uid|creationTimestamp):/d' "$IN" | kubect
 info "Restored Sealed Secrets key(s) from $IN"
 
 if kubectl get deploy/sealed-secrets -n kube-system &>/dev/null; then
-  info "Controller already running — restarting it to load the restored keys"
+  info "Controller already running, restarting it to load the restored keys"
   kubectl rollout restart deploy/sealed-secrets -n kube-system
   kubectl rollout status deploy/sealed-secrets -n kube-system --timeout=120s
 fi

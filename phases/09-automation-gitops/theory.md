@@ -1,4 +1,4 @@
-# Phase 09 — Automation and GitOps
+# Phase 09: Automation and GitOps
 
 Every phase so far ended with a `bootstrap.sh` that ran `helm upgrade --install` in a carefully chosen order. That script *is* the platform: it knows which component comes first, which versions to use, and which secrets to pass. It works, but only when you run it, only from your laptop, and only if nobody changed the cluster by hand in the meantime.
 
@@ -34,7 +34,7 @@ The [OpenGitOps](https://opengitops.dev/) project (a CNCF working group) defines
 
 | Principle | Meaning | In this phase |
 |---|---|---|
-| **Declarative** | The system's desired state is expressed declaratively | Every component is a YAML manifest or a `HelmRelease` — no imperative `helm` commands |
+| **Declarative** | The system's desired state is expressed declaratively | Every component is a YAML manifest or a `HelmRelease`, with no imperative `helm` commands |
 | **Versioned and immutable** | The desired state is stored in a way that enforces immutability and keeps a complete history | Git commits: every change has an author, a timestamp, a diff and a revert |
 | **Pulled automatically** | Software agents pull the desired state from the source | Flux runs in the cluster and fetches the repository; nothing outside pushes into the cluster |
 | **Continuously reconciled** | Agents continuously observe actual state and attempt to apply the desired state | Flux re-applies every few minutes and corrects any drift |
@@ -45,13 +45,13 @@ The [OpenGitOps](https://opengitops.dev/) project (a CNCF working group) defines
 
 Traditional CI/CD **pushes**: a pipeline holds cluster credentials and runs `kubectl apply` or `helm upgrade` against the API server.
 
-In the **push model** (classic CI/CD), a `git push` triggers a CI pipeline that holds cluster-admin credentials and connects directly to the API server to apply changes. In the **pull model** (GitOps), a `git push` updates the Git repository, and Flux — running inside the cluster — fetches the repository with read-only access and applies the desired state to the API server. No external system needs credentials to reach the cluster.
+In the **push model** (classic CI/CD), a `git push` triggers a CI pipeline that holds cluster-admin credentials and connects directly to the API server to apply changes. In the **pull model** (GitOps), a `git push` updates the Git repository, and Flux, running inside the cluster, fetches the repository with read-only access and applies the desired state to the API server. No external system needs credentials to reach the cluster.
 
 The pull model has three structural advantages:
 
 1. **No cluster credentials leave the cluster.** CI never needs a kubeconfig, so a compromised pipeline cannot deploy arbitrary workloads. In a homelab behind NAT this also means GitHub never needs to reach your network.
 2. **Continuous, not one-shot.** A push pipeline applies once and forgets. Flux applies again every interval, so manual changes are reverted instead of silently persisting.
-3. **The cluster is self-describing.** Point any cluster at the repository and it converges on the same state — which is exactly what a rebuild is.
+3. **The cluster is self-describing.** Point any cluster at the repository and it converges on the same state, which is exactly what a rebuild is.
 
 ---
 
@@ -63,8 +63,8 @@ The loop runs on a fixed interval (`.spec.interval`) or immediately when a new G
 
 Two terms matter:
 
-- **Drift** — any difference between Git and the cluster. Flux corrects drift on plain manifests at every reconciliation. For Helm releases, drift detection is opt-in (`spec.driftDetection.mode: enabled`) and is enabled here for the todo-app.
-- **Pruning** — with `prune: true`, deleting a file from Git deletes the object from the cluster. Without it, removed manifests leave orphans behind, and Git stops being the full truth.
+- **Drift**: any difference between Git and the cluster. Flux corrects drift on plain manifests at every reconciliation. For Helm releases, drift detection is opt-in (`spec.driftDetection.mode: enabled`) and is enabled here for the todo-app.
+- **Pruning**: with `prune: true`, deleting a file from Git deletes the object from the cluster. Without it, removed manifests leave orphans behind, and Git stops being the full truth.
 
 ---
 
@@ -98,13 +98,13 @@ There are two supported ways to install Flux:
 
 This phase uses the **Flux Operator**, the method now used by the official Flux examples. The bootstrap script installs the operator and applies `flux-instance.yaml` once; from then on the `FluxInstance` and even the operator's own `HelmRelease` are reconciled from Git. Adding the image automation controllers, for example, was a two-line change in `components`.
 
-Both versions are pinned exactly — Flux `2.9.5` in the `FluxInstance`, operator `0.60.0` in its `HelmRelease` — and each lives in exactly one file. A floating `2.9.x` is convenient, but then two rebuilds a month apart run different software, which is the drift GitOps exists to prevent.
+Both versions are pinned exactly (Flux `2.9.5` in the `FluxInstance`, operator `0.60.0` in its `HelmRelease`) and each lives in exactly one file. A floating `2.9.x` is convenient, but then two rebuilds a month apart run different software, which is the drift GitOps exists to prevent.
 
 ---
 
 ## Two Things Called "Kustomization"
 
-A classic source of confusion — there are two unrelated resources with the same name:
+A classic source of confusion: there are two unrelated resources with the same name:
 
 | | `kustomize.config.k8s.io/v1beta1` | `kustomize.toolkit.fluxcd.io/v1` |
 |---|---|---|
@@ -112,7 +112,7 @@ A classic source of confusion — there are two unrelated resources with the sam
 | **Answers** | *Which files* make up this directory, and how to patch them | *Where* to find a directory, *when* to apply it, *after what*, and *how* to verify it |
 | **Lives in** | Every directory Kustomize builds | `clusters/prod/*.yaml` |
 
-The Flux `Kustomization` points at a path; Kustomize builds that path using its `kustomization.yaml`. If the path has no `kustomization.yaml`, Flux generates one with every manifest it finds — used here for `platform-secrets/`.
+The Flux `Kustomization` points at a path; Kustomize builds that path using its `kustomization.yaml`. If the path has no `kustomization.yaml`, Flux generates one with every manifest it finds, which is used here for `platform-secrets/`.
 
 ---
 
@@ -120,11 +120,11 @@ The Flux `Kustomization` points at a path; Kustomize builds that path using its 
 
 A `HelmRelease` is a Helm release whose lifecycle is owned by helm-controller instead of your terminal. It adds what the CLI does not do on its own:
 
-- **Remediation** — `install.remediation.retries` and `upgrade.remediation.retries` retry failed operations and roll back automatically after the last failure.
-- **CRD lifecycle** — plain Helm installs CRDs from `crds/` once and never upgrades them. `crds: CreateReplace` keeps them current, which matters for Envoy Gateway (Gateway API CRDs) and Longhorn.
-- **Values from Secrets** — `valuesFrom` injects keys from a `Secret` or `ConfigMap` at a `targetPath`, so passwords never appear in the `HelmRelease`. This replaces the `--set-string "harbor.harborAdminPassword=${...}"` flags of Phase 08.
-- **Drift detection** — compares the live objects with the rendered chart and reverts manual edits.
-- **Sources** — the chart comes from a `HelmRepository` (classic `index.yaml`) or an `OCIRepository` (`oci://` registries such as quay.io, Docker Hub or your own Harbor).
+- **Remediation**: `install.remediation.retries` and `upgrade.remediation.retries` retry failed operations and roll back automatically after the last failure.
+- **CRD lifecycle**: plain Helm installs CRDs from `crds/` once and never upgrades them. `crds: CreateReplace` keeps them current, which matters for Envoy Gateway (Gateway API CRDs) and Longhorn.
+- **Values from Secrets**: `valuesFrom` injects keys from a `Secret` or `ConfigMap` at a `targetPath`, so passwords never appear in the `HelmRelease`. This replaces the `--set-string "harbor.harborAdminPassword=${...}"` flags of Phase 08.
+- **Drift detection**: compares the live objects with the rendered chart and reverts manual edits.
+- **Sources**: the chart comes from a `HelmRepository` (classic `index.yaml`) or an `OCIRepository` (`oci://` registries such as quay.io, Docker Hub or your own Harbor).
 
 ### From wrapper charts to HelmReleases
 
@@ -146,13 +146,13 @@ The wrapper existed to bundle "chart + extras + order" into one `helm install`. 
 
 Phase 08's bootstrap encoded a dependency graph as the order of shell commands. Here the same graph is data:
 
-The dependency chain has five layers. **infra-controllers** (Sealed Secrets, MetalLB, cert-manager, Envoy Gateway, Longhorn) installs the operators and their CRDs. Two layers depend on it: **infra-configs** (IPAddressPool, ClusterIssuers, Gateway, TLS certificate, CoreDNS, CA bundle — custom resources that need the CRDs above) and **platform-secrets** (SealedSecrets for authentik and Harbor). Once both are ready, **platform** (authentik, Harbor, Longhorn UI behind SSO) can start. Platform in turn gates **apps** (the todo-app, with chart and images pulled from Harbor) and **image-automation** (watches Harbor for new tags and commits them back to Git).
+The dependency chain has five layers. **infra-controllers** (Sealed Secrets, MetalLB, cert-manager, Envoy Gateway, Longhorn) installs the operators and their CRDs. Two layers depend on it: **infra-configs** (IPAddressPool, ClusterIssuers, Gateway, TLS certificate, CoreDNS, CA bundle: custom resources that need the CRDs above) and **platform-secrets** (SealedSecrets for authentik and Harbor). Once both are ready, **platform** (authentik, Harbor, Longhorn UI behind SSO) can start. Platform in turn gates **apps** (the todo-app, with chart and images pulled from Harbor) and **image-automation** (watches Harbor for new tags and commits them back to Git).
 
 Three settings make the graph reliable:
 
-- **`dependsOn`** — a Kustomization waits until the ones it depends on are Ready.
-- **`wait: true`** — a Kustomization is only Ready when every object it applied is healthy (Deployments rolled out, HelmReleases installed, Certificates issued). Without it, "Ready" would only mean "applied".
-- **`timeout` and `retryInterval`** — how long to wait for health, and how soon to retry after a failure. Transient failures (a CRD not yet registered, a webhook not yet listening) heal on the next retry instead of failing the whole bootstrap.
+- **`dependsOn`**: a Kustomization waits until the ones it depends on are Ready.
+- **`wait: true`**: a Kustomization is only Ready when every object it applied is healthy (Deployments rolled out, HelmReleases installed, Certificates issued). Without it, "Ready" would only mean "applied".
+- **`timeout` and `retryInterval`**: how long to wait for health, and how soon to retry after a failure. Transient failures (a CRD not yet registered, a webhook not yet listening) heal on the next retry instead of failing the whole bootstrap.
 
 Why split controllers and configs? Applying an `IPAddressPool` before MetalLB's CRD exists fails with *no matches for kind*. Kustomize cannot order across CRD registration; `dependsOn` can.
 
@@ -172,7 +172,7 @@ Some values are cluster-specific (the MetalLB range, the Gateway IP). Instead of
 | **SOPS** (+ age or KMS) | kustomize-controller at apply time | age key or cloud KMS | Files stay readable (only values encrypted); native Flux support |
 | **External Secrets** | An operator syncing from Vault/OpenBao/1Password | The external secret store | No ciphertext in Git at all; requires running a secret store |
 
-This phase keeps **Sealed Secrets** from Phase 04 — the concepts carry over and it needs no extra infrastructure. The difference is the workflow: Phase 04 sealed *and applied*; here the script only seals, and **the commit is the deployment**.
+This phase keeps **Sealed Secrets** from Phase 04: the concepts carry over and it needs no extra infrastructure. The difference is the workflow: Phase 04 sealed *and applied*; here the script only seals, and **the commit is the deployment**.
 
 ### The key you must never lose
 
@@ -188,7 +188,7 @@ So far a new release meant: build, push, edit a tag, run `helm upgrade`. With im
 
 A developer pushes a new image (`docker push harbor.local/todo/frontend:1.1.0`). The **ImageRepository** scans Harbor every five minutes and lists available tags. The **ImagePolicy** applies a semver filter (`>=1.0.0`) and selects `1.1.0` as the latest. The **ImageUpdateAutomation** rewrites the `$imagepolicy` markers in the repository YAML, commits and pushes the change to `main`. From there, Flux's normal reconciliation picks up the new commit and helm-controller upgrades the running release.
 
-The crucial design decision: the automation **does not patch the cluster directly** — it commits to Git, and the normal reconciliation deploys the commit. The deployment history stays in Git, a bad release is undone with `git revert`, and there is still exactly one path into the cluster.
+The crucial design decision: the automation **does not patch the cluster directly**: it commits to Git, and the normal reconciliation deploys the commit. The deployment history stays in Git, a bad release is undone with `git revert`, and there is still exactly one path into the cluster.
 
 The markers are ordinary YAML comments on the lines to update:
 
@@ -213,7 +213,7 @@ Two problems appear only because Flux runs *inside* the cluster:
 
 **DNS.** `harbor.local` resolves on your laptop through `/etc/hosts`, but Pods use CoreDNS, which has never heard of it. When source-controller tries to pull `oci://harbor.local/todo/todo-app`, the lookup fails. k3s lets you extend CoreDNS with a `coredns-custom` ConfigMap; the one in `infrastructure/configs/coredns/` maps the `.local` hostnames to the Gateway IP. The zones are the exact hostnames: a generic `local` zone would also capture `*.cluster.local` and break every in-cluster lookup.
 
-**TLS.** Harbor's certificate is signed by the homelab CA, which source-controller does not trust. Flux sources accept a `certSecretRef` with a `ca.crt` key. Rather than copying the CA secret (which contains the CA *private key*) into `flux-system`, a small `Certificate` is issued there by the `homelab-ca` issuer: cert-manager places the issuing CA's public certificate in `ca.crt`, which is exactly what Flux needs. The Secret also holds that leaf certificate's own `tls.crt`/`tls.key`, which Flux would offer as a client certificate — but a TLS client only sends one when the server requests it, and the Gateway never does. Tools like trust-manager can distribute *only* the CA certificate; they are the right answer when many namespaces need a bundle.
+**TLS.** Harbor's certificate is signed by the homelab CA, which source-controller does not trust. Flux sources accept a `certSecretRef` with a `ca.crt` key. Rather than copying the CA secret (which contains the CA *private key*) into `flux-system`, a small `Certificate` is issued there by the `homelab-ca` issuer: cert-manager places the issuing CA's public certificate in `ca.crt`, which is exactly what Flux needs. The Secret also holds that leaf certificate's own `tls.crt`/`tls.key`, which Flux would offer as a client certificate, but a TLS client only sends one when the server requests it, and the Gateway never does. Tools like trust-manager can distribute *only* the CA certificate; they are the right answer when many namespaces need a bundle.
 
 The Gateway IP is pinned through an `EnvoyProxy` resource with the `metallb.io/loadBalancerIPs` annotation, so the CoreDNS entries and your `/etc/hosts` stay valid across rebuilds.
 
@@ -221,7 +221,7 @@ The Gateway IP is pinned through an `EnvoyProxy` resource with the `metallb.io/l
 
 ## What Stays Imperative
 
-GitOps does not remove every manual step — it reduces them to the few that cannot be declarative by definition:
+GitOps does not remove every manual step, but it reduces them to the few that cannot be declarative by definition:
 
 | Step | Why it cannot live in Git |
 |---|---|
@@ -251,13 +251,13 @@ Larger organisations take this further: separate repositories per team (Flux mul
 
 ## Further Reading
 
-- [OpenGitOps principles](https://opengitops.dev/) — the vendor-neutral definition of GitOps
-- [Flux documentation](https://fluxcd.io/flux/) — concepts, components and guides
-- [Flux Operator documentation](https://fluxcd.control-plane.io/operator/) — `FluxInstance` reference
-- [Ways of structuring your repositories](https://fluxcd.io/flux/guides/repository-structure/) — monorepo, repo-per-team, repo-per-app
-- [flux2-kustomize-helm-example](https://github.com/fluxcd/flux2-kustomize-helm-example) — the reference this phase is based on
-- [HelmRelease API](https://fluxcd.io/flux/components/helm/helmreleases/) — remediation, drift detection, `valuesFrom`
-- [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/) — `dependsOn`, `wait`, `postBuild`
-- [Automate image updates to Git](https://fluxcd.io/flux/guides/image-update/) — image automation guide
+- [OpenGitOps principles](https://opengitops.dev/): the vendor-neutral definition of GitOps
+- [Flux documentation](https://fluxcd.io/flux/): concepts, components and guides
+- [Flux Operator documentation](https://fluxcd.control-plane.io/operator/): `FluxInstance` reference
+- [Ways of structuring your repositories](https://fluxcd.io/flux/guides/repository-structure/): monorepo, repo-per-team, repo-per-app
+- [flux2-kustomize-helm-example](https://github.com/fluxcd/flux2-kustomize-helm-example): the reference this phase is based on
+- [HelmRelease API](https://fluxcd.io/flux/components/helm/helmreleases/): remediation, drift detection, `valuesFrom`
+- [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/): `dependsOn`, `wait`, `postBuild`
+- [Automate image updates to Git](https://fluxcd.io/flux/guides/image-update/): image automation guide
 - [Flux security best practices](https://fluxcd.io/flux/security/best-practices/)
-- [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) — key management and rotation
+- [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets): key management and rotation

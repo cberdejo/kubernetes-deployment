@@ -1,5 +1,5 @@
 # Cluster-specific values injected into manifests with Flux post-build
-# variable substitution (${VAR}). Change them here — never hardcode them
+# variable substitution (${VAR}). Change them here; never hardcode them
 # in the manifests of the layers.
 apiVersion: v1
 kind: ConfigMap

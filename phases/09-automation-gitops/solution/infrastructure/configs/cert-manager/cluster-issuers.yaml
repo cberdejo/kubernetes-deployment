@@ -1,5 +1,5 @@
 # Same homelab CA chain as Phases 06–08.
-# Step 1: bootstrap issuer — signs its own certificates to create the CA
+# Step 1: bootstrap issuer: signs its own certificates to create the CA
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

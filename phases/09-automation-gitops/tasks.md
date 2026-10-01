@@ -1,6 +1,6 @@
-# Phase 09 — Automation and GitOps with Flux CD
+# Phase 09: Automation and GitOps with Flux CD
 
-This phase removes every manual `helm install` from the platform. You will describe the entire cluster — controllers, configuration, platform services and the todo-app — as manifests in Git, install Flux CD with the Flux Operator, and let it build and maintain the cluster from the repository. At the end, a `docker push` of a new image version is enough to get it deployed, through a commit that Flux writes itself.
+This phase removes every manual `helm install` from the platform. You will describe the entire cluster (controllers, configuration, platform services and the todo-app) as manifests in Git, install Flux CD with the Flux Operator, and let it build and maintain the cluster from the repository. At the end, a `docker push` of a new image version is enough to get it deployed, through a commit that Flux writes itself.
 
 **Starting point:** the Phase 08 platform, but on a **clean cluster**. Proving that everything rebuilds from Git is the whole point, and Flux-managed releases should not be mixed with the Helm releases created by hand in Phase 08. On k3s: `/usr/local/bin/k3s-uninstall.sh`, then reinstall.
 
@@ -25,16 +25,16 @@ Compare your work with `solution/` when you are done.
 
 ## How it works
 
-Two inputs feed the system: you push code to the GitHub repository, and developers push container images (e.g. version 1.1.0) to Harbor. Inside the cluster, Flux fetches the repository every minute and reconciles layers in dependency order: infra-controllers first, then infra-configs, then platform-secrets, then platform, and finally apps. Apps pulls its chart and images from Harbor. Meanwhile, the image-automation controller scans Harbor for new tags and, when it finds one, commits the updated tag back to the GitHub repository — closing the loop so that a `docker push` alone triggers a full deployment.
+Two inputs feed the system: you push code to the GitHub repository, and developers push container images (e.g. version 1.1.0) to Harbor. Inside the cluster, Flux fetches the repository every minute and reconciles layers in dependency order: infra-controllers first, then infra-configs, then platform-secrets, then platform, and finally apps. Apps pulls its chart and images from Harbor. Meanwhile, the image-automation controller scans Harbor for new tags and, when it finds one, commits the updated tag back to the GitHub repository, closing the loop so that a `docker push` alone triggers a full deployment.
 
-The key idea: **the cluster is a function of the repository**. You never run `helm` or `kubectl apply` against it again — you commit, and Flux converges. Even automated image updates go through Git, so the history of every deployment is `git log`.
+The key idea: **the cluster is a function of the repository**. You never run `helm` or `kubectl apply` against it again: you commit, and Flux converges. Even automated image updates go through Git, so the history of every deployment is `git log`.
 
 ---
 
-## Step 1 — Prerequisites
+## Step 1: Prerequisites
 
 ```bash
-# Kubernetes 1.34 or newer — Flux 2.9 supports 1.34, 1.35 and 1.36
+# Kubernetes 1.34 or newer: Flux 2.9 supports 1.34, 1.35 and 1.36
 kubectl version
 
 # open-iscsi on every node (Longhorn)
@@ -45,7 +45,7 @@ helm version
 kubeseal --version
 docker version
 
-# Flux CLI — optional, but it makes inspecting Flux much easier
+# Flux CLI: optional, but it makes inspecting Flux much easier
 curl -s https://fluxcd.io/install.sh | sudo bash
 flux --version
 ```
@@ -62,13 +62,13 @@ You also need:
 
 ---
 
-## Step 2 — Create the repository structure
+## Step 2: Create the repository structure
 
 Everything Flux applies must be pushed to the branch it syncs (`main`). Create this layout under `phases/09-automation-gitops/solution/`:
 
 The `solution/` directory contains: `bootstrap/` with `bootstrap.sh` and `.env.example`; `clusters/prod/` with a `kustomization.yaml`, `cluster-settings.yaml`, a `flux-system/` folder (FluxInstance and Flux Operator self-management), and one Flux Kustomization file per layer (`infrastructure.yaml`, `platform.yaml`, `apps.yaml`, `image-automation.yaml`), plus `clusters/staging/.gitkeep` ready for a second environment; `infrastructure/controllers/` (one folder per component) and `infrastructure/configs/`; `platform-secrets/`; `platform/`; `apps/` with `base/todo-app/`, `prod/` and `staging/.gitkeep`; `image-automation/`; and `scripts/`.
 
-Each component folder follows the same pattern — `namespace.yaml`, `repository.yaml` (where the chart comes from), `release.yaml` (the `HelmRelease`) and a `kustomization.yaml` listing them.
+Each component folder follows the same pattern: `namespace.yaml`, `repository.yaml` (where the chart comes from), `release.yaml` (the `HelmRelease`) and a `kustomization.yaml` listing them.
 
 **Work on your own fork.** Flux syncs the repository in `flux-instance.yaml` (`spec.sync.url`), and image automation pushes commits to its `main` branch. Fork the repository, change that URL to your fork, and create the token for the fork.
 
@@ -89,9 +89,9 @@ Copy `bootstrap/.env.example` to `bootstrap/.env` and fill it in. Generate the r
 
 ---
 
-## Step 3 — Install Flux with the Flux Operator
+## Step 3: Install Flux with the Flux Operator
 
-### 3a — Give Flux access to the repository
+### 3a: Give Flux access to the repository
 
 This is the only credential created by hand in the whole phase:
 
@@ -103,16 +103,16 @@ kubectl create secret generic flux-system -n flux-system \
   --from-literal=password="$GITHUB_TOKEN"
 ```
 
-### 3b — Install the operator
+### 3b: Install the operator
 
 ```bash
 helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
   --version 0.60.0 -n flux-system --wait
 ```
 
-Use the same tag as `clusters/prod/flux-system/flux-operator.yaml` — that `HelmRelease` adopts this release, so from now on the operator upgrades itself through Git. The file is the single source of the version: `bootstrap.sh` reads it from there instead of keeping its own copy. Check the latest version on the [releases page](https://github.com/controlplaneio-fluxcd/flux-operator/releases).
+Use the same tag as `clusters/prod/flux-system/flux-operator.yaml`: that `HelmRelease` adopts this release, so from now on the operator upgrades itself through Git. The file is the single source of the version: `bootstrap.sh` reads it from there instead of keeping its own copy. Check the latest version on the [releases page](https://github.com/controlplaneio-fluxcd/flux-operator/releases).
 
-### 3c — Describe Flux with a FluxInstance
+### 3c: Describe Flux with a FluxInstance
 
 **`clusters/prod/flux-system/flux-instance.yaml`**
 
@@ -154,7 +154,7 @@ kubectl apply -f clusters/prod/flux-system/flux-instance.yaml
 kubectl wait fluxinstance/flux -n flux-system --for=condition=Ready --timeout=10m
 ```
 
-### 3d — Verify
+### 3d: Verify
 
 ```bash
 kubectl get pods -n flux-system
@@ -170,7 +170,7 @@ flux get kustomizations
 
 ---
 
-## Step 4 — Layer 1: infrastructure controllers
+## Step 4: Layer 1 (infrastructure controllers)
 
 Translate each Phase 08 wrapper chart into a source plus a `HelmRelease`. Here is cert-manager, whose chart is published in an OCI registry:
 
@@ -221,7 +221,7 @@ spec:
 
 Note what changed from `apps/cert-manager/values/prod-values.yaml`: the values are no longer nested under a `cert-manager:` key, because there is no wrapper chart anymore.
 
-Charts published in a classic repository (MetalLB, Longhorn, Sealed Secrets) use a `HelmRepository` and `spec.chart.spec` instead of `chartRef` — see `longhorn/release.yaml`. Two settings deserve attention:
+Charts published in a classic repository (MetalLB, Longhorn, Sealed Secrets) use a `HelmRepository` and `spec.chart.spec` instead of `chartRef` (see `longhorn/release.yaml`). Two settings deserve attention:
 
 - **`crds: CreateReplace`** on charts that ship CRDs in `crds/` (Envoy Gateway, Longhorn, MetalLB). Plain Helm never upgrades those CRDs.
 - **`preUpgradeChecker.jobEnabled: false`** on Longhorn, as in previous phases. Its pre-upgrade Job blocks GitOps upgrades.
@@ -254,7 +254,7 @@ flux get helmreleases -A --watch
 
 ---
 
-## Step 5 — Layer 2: infrastructure configs
+## Step 5: Layer 2 (infrastructure configs)
 
 These are the custom resources that were templates inside the wrapper charts, now plain manifests that depend on layer 1:
 
@@ -284,7 +284,7 @@ Things to notice in `infrastructure/configs/`:
 
 3. **A pinned Gateway IP.** `gateway/envoy-proxy.yaml` asks MetalLB for `${GATEWAY_IP}` through the `metallb.io/loadBalancerIPs` annotation, and the Gateway references it with `spec.infrastructure.parametersRef`. Your `/etc/hosts` entry will not change on a rebuild.
 
-4. **In-cluster DNS for `.local`.** Flux fetches from `harbor.local` *from inside a Pod*. `coredns/coredns-custom.yaml` adds a CoreDNS server block for the four hostnames. Read the comment in that file before changing the zones — a generic `local` zone breaks cluster DNS.
+4. **In-cluster DNS for `.local`.** Flux fetches from `harbor.local` *from inside a Pod*. `coredns/coredns-custom.yaml` adds a CoreDNS server block for the four hostnames. Read the comment in that file before changing the zones: a generic `local` zone breaks cluster DNS.
 
 5. **A CA bundle for Flux.** `flux/homelab-ca-bundle.yaml` is a `Certificate` in `flux-system` issued by `homelab-ca`. Its Secret's `ca.crt` key holds the homelab CA certificate, which Flux sources use through `certSecretRef`, without copying the CA private key around. The Secret also carries the leaf `tls.crt`/`tls.key`; the comment in the file explains why that is harmless.
 
@@ -307,9 +307,9 @@ echo "<GATEWAY_IP>  todo.local longhorn.local authentik.local harbor.local" | su
 
 ---
 
-## Step 6 — Secrets: seal, commit, back up the key
+## Step 6: Secrets (seal, commit, back up the key)
 
-### 6a — Back up the Sealed Secrets key first
+### 6a: Back up the Sealed Secrets key first
 
 The controller is running now (layer 1). Before sealing anything, export its private key **outside the repository**:
 
@@ -319,7 +319,7 @@ The controller is running now (layer 1). Before sealing anything, export its pri
 
 The script refuses to write inside the Git repository. Store the file somewhere safe (a password manager is fine). Without it, a rebuilt cluster cannot decrypt anything you seal today.
 
-### 6b — Seal the platform credentials
+### 6b: Seal the platform credentials
 
 ```bash
 ./scripts/seal-platform-secrets.sh
@@ -327,7 +327,7 @@ The script refuses to write inside the Git repository. Store the file somewhere 
 
 It fetches the controller's public certificate and writes `platform-secrets/authentik-secrets.yaml` and `platform-secrets/harbor-secrets.yaml`, overwriting the ones that came with the repository (those were sealed with the author's key and cannot decrypt in your cluster). Open one: the values are ciphertext, safe to publish in a public repository.
 
-Unlike Phase 04, **nothing is applied**. Commit the files — the commit is the deployment:
+Unlike Phase 04, **nothing is applied**. Commit the files; the commit is the deployment:
 
 ```bash
 git add platform-secrets/
@@ -341,14 +341,14 @@ git push
 flux reconcile kustomization platform-secrets --with-source
 kubectl get secret authentik-secrets -n authentik
 kubectl get secret harbor-secrets -n harbor
-# Expected: both exist — decrypted by the controller
+# Expected: both exist, decrypted by the controller
 ```
 
 ---
 
-## Step 7 — Layer 3: platform services
+## Step 7: Layer 3 (platform services)
 
-The authentik and Harbor `HelmRelease`s read their credentials with `valuesFrom` — this replaces the `--set-string` flags of Phase 08:
+The authentik and Harbor `HelmRelease`s read their credentials with `valuesFrom`, which replaces the `--set-string` flags of Phase 08:
 
 ```yaml
 # platform/harbor/release.yaml (excerpt)
@@ -387,11 +387,11 @@ kubectl run dns-test --rm -it --image=busybox:1.36 --restart=Never -- nslookup h
 
 ---
 
-## Step 8 — Layer 4: todo-app from Harbor OCI
+## Step 8: Layer 4 (todo-app from Harbor OCI)
 
-### 8a — Seed Harbor
+### 8a: Seed Harbor
 
-Harbor is installed by Flux, so its first content has to be pushed once by hand — the same steps as Phase 08. `harbor.local` must resolve to your `GATEWAY_IP` on this machine (see the end of Step 5):
+Harbor is installed by Flux, so its first content has to be pushed once by hand, with the same steps as Phase 08. `harbor.local` must resolve to your `GATEWAY_IP` on this machine (see the end of Step 5):
 
 ```bash
 # Create the public "todo" project (UI or API, see Phase 08 Step 5), then:
@@ -399,7 +399,7 @@ Harbor is installed by Flux, so its first content has to be pushed once by hand 
 ./scripts/publish-chart.sh
 ```
 
-### 8b — The chart source
+### 8b: The chart source
 
 **`apps/base/todo-app/oci-repository.yaml`**
 
@@ -421,11 +421,11 @@ spec:
     operation: copy
 ```
 
-### 8c — Base release and prod overlay
+### 8c: Base release and prod overlay
 
 `apps/base/todo-app/release.yaml` holds the Phase 08 values that do not depend on the environment. It keeps `releaseName: my-app`, so Service names and your authentik providers stay valid, and it enables `driftDetection`.
 
-`apps/prod/todo-app-values.yaml` is a Kustomize patch with what varies per cluster — the images:
+`apps/prod/todo-app-values.yaml` is a Kustomize patch with what varies per cluster (the images):
 
 ```yaml
 frontend:
@@ -458,13 +458,13 @@ curl -sk https://todo.local -o /dev/null -w "%{http_code}\n"
 
 ---
 
-## Step 9 — Image automation
+## Step 9: Image automation
 
 Three kinds of resources in `image-automation/`, all in `flux-system`:
 
-- **`ImageRepository`** — scans `harbor.local/todo/frontend`, `backend` and the `todo-app` chart every 5 minutes, trusting the CA through `certSecretRef`. A Helm chart in an OCI registry is just another artifact with tags, so the same controller tracks it.
-- **`ImagePolicy`** — `semver: ">=1.0.0"` selects the newest stable image tag, ignoring `latest`, SHAs and pre-releases. The chart policy uses `">=0.1.0 <1.0.0"`: a `1.0.0` chart signals breaking changes and deserves a commit written by a human.
-- **`ImageUpdateAutomation`** — rewrites the markers under `apps/prod/`, commits and pushes to `main` using the `flux-system` Git credential.
+- **`ImageRepository`**: scans `harbor.local/todo/frontend`, `backend` and the `todo-app` chart every 5 minutes, trusting the CA through `certSecretRef`. A Helm chart in an OCI registry is just another artifact with tags, so the same controller tracks it.
+- **`ImagePolicy`**: `semver: ">=1.0.0"` selects the newest stable image tag, ignoring `latest`, SHAs and pre-releases. The chart policy uses `">=0.1.0 <1.0.0"`: a `1.0.0` chart signals breaking changes and deserves a commit written by a human.
+- **`ImageUpdateAutomation`**: rewrites the markers under `apps/prod/`, commits and pushes to `main` using the `flux-system` Git credential.
 
 ```bash
 flux get images all -A
@@ -478,7 +478,7 @@ flux get images all -A
 
 ---
 
-## Step 10 — Release a new version end to end
+## Step 10: Release a new version end to end
 
 This is the payoff of the phase. Change something visible in the frontend (the page title, for instance), then:
 
@@ -503,7 +503,7 @@ kubectl get pods -n todo -w             # new frontend Pod rolled out
 git revert --no-edit HEAD && git push
 ```
 
-Flux redeploys 1.0.0. The image policy still sees 1.1.0 as the latest, though, and will commit it again. To keep 1.0.0, suspend the automation first (`flux suspend image update todo-app`) or delete the bad tag from Harbor — a real-world lesson about how automation and rollbacks interact.
+Flux redeploys 1.0.0. The image policy still sees 1.1.0 as the latest, though, and will commit it again. To keep 1.0.0, suspend the automation first (`flux suspend image update todo-app`) or delete the bad tag from Harbor: a real-world lesson about how automation and rollbacks interact.
 
 **Release a chart version the same way.** Bump `version` in `application/chart/Chart.yaml` to `0.2.0` (change a default, add a label), then publish it:
 
@@ -516,7 +516,7 @@ flux get sources oci todo-app           # 0.2.0@sha256:…
 
 ---
 
-## Step 11 — Experience drift correction
+## Step 11: Experience drift correction
 
 GitOps means manual changes do not survive. Try it:
 
@@ -525,13 +525,13 @@ GitOps means manual changes do not survive. Try it:
 kubectl scale deploy my-app-todo-app-frontend -n todo --replicas=3
 flux reconcile helmrelease todo-app -n todo
 kubectl get deploy my-app-todo-app-frontend -n todo
-# Expected: back to 1 replica — helm-controller drift detection
+# Expected: back to 1 replica (helm-controller drift detection)
 
 # 2. Delete a plain manifest managed by a Flux Kustomization
 kubectl delete httproute longhorn-ui -n longhorn
 flux reconcile kustomization platform
 kubectl get httproute -n longhorn
-# Expected: longhorn-ui recreated — kustomize-controller
+# Expected: longhorn-ui recreated (kustomize-controller)
 
 # 3. Emergency changes: suspend, fix, then fix Git and resume
 flux suspend helmrelease todo-app -n todo
@@ -541,7 +541,7 @@ flux resume helmrelease todo-app -n todo                              # and now 
 
 ---
 
-## Step 12 — Validate in CI
+## Step 12: Validate in CI
 
 A broken manifest merged to `main` reaches the cluster within minutes, so validate before merging:
 
@@ -549,15 +549,15 @@ A broken manifest merged to `main` reaches the cluster within minutes, so valida
 ./scripts/validate.sh
 ```
 
-It builds every overlay with Kustomize and validates all objects with kubeconform against the Kubernetes schemas, the Flux CRD schemas of the exact version in the `FluxInstance`, and a pinned commit of the community CRD catalog (cert-manager, MetalLB, Gateway API, Envoy Gateway, Flux Operator, Sealed Secrets). A kind without any schema fails the run instead of being skipped. Finally, it checks that every `$imagepolicy` marker names an `ImagePolicy` that exists — a typo there is only a YAML comment, so nothing else would catch it.
+It builds every overlay with Kustomize and validates all objects with kubeconform against the Kubernetes schemas, the Flux CRD schemas of the exact version in the `FluxInstance`, and a pinned commit of the community CRD catalog (cert-manager, MetalLB, Gateway API, Envoy Gateway, Flux Operator, Sealed Secrets). A kind without any schema fails the run instead of being skipped. Finally, it checks that every `$imagepolicy` marker names an `ImagePolicy` that exists: a typo there is only a YAML comment, so nothing else would catch it.
 
-Break something on purpose — rename `interval` to `intervall` in a `HelmRelease`, or misspell a marker — and run it again to see the error.
+Break something on purpose (rename `interval` to `intervall` in a `HelmRelease`, or misspell a marker) and run it again to see the error.
 
 The workflow at `.github/workflows/gitops-validate.yaml` (repository root) runs the same script, plus `shellcheck` on every script, on each pull request that touches a phase solution and on the commits image automation pushes to `main`. It discovers every phase that ships a `solution/scripts/validate.sh`, so later phases reuse it without editing the workflow.
 
 ---
 
-## Step 13 — The ultimate test: rebuild from scratch
+## Step 13: The ultimate test, rebuild from scratch
 
 A GitOps platform is only as good as its ability to come back. Destroy the cluster and rebuild it:
 
@@ -567,13 +567,13 @@ A GitOps platform is only as good as its ability to come back. Destroy the clust
 ./bootstrap/bootstrap.sh
 ```
 
-Because the Sealed Secrets key backup is restored before Flux starts, the SealedSecrets already in Git decrypt without re-sealing. Time the rebuild — everything except seeding Harbor and configuring authentik happens without your intervention.
+Because the Sealed Secrets key backup is restored before Flux starts, the SealedSecrets already in Git decrypt without re-sealing. Time the rebuild: everything except seeding Harbor and configuring authentik happens without your intervention.
 
 ---
 
 ## Automated alternative: `bootstrap.sh`
 
-`bootstrap/bootstrap.sh` performs Steps 3–10 in order: Git credential, key restore, Flux Operator, `FluxInstance`, waiting for each layer, sealing (only if the secrets are missing or were sealed with another key), CA trust, seeding Harbor, and verification. Compare it with the Phase 08 script: it contains no `helm upgrade` for any platform component — only the steps GitOps cannot do by itself.
+`bootstrap/bootstrap.sh` performs Steps 3–10 in order: Git credential, key restore, Flux Operator, `FluxInstance`, waiting for each layer, sealing (only if the secrets are missing or were sealed with another key), CA trust, seeding Harbor, and verification. Compare it with the Phase 08 script: it contains no `helm upgrade` for any platform component, only the steps GitOps cannot do by itself.
 
 ---
 
@@ -614,23 +614,23 @@ Because the Sealed Secrets key backup is restored before Flux starts, the Sealed
 
 ## Additional exercises
 
-1. **Notifications** — create a Discord or Slack webhook, seal it as a Secret in `flux-system`, and add a `Provider` plus an `Alert` (`notification.toolkit.fluxcd.io/v1beta3`) for events of severity `error` from all Kustomizations and HelmReleases. Break a release on purpose and receive the alert.
+1. **Notifications**: create a Discord or Slack webhook, seal it as a Secret in `flux-system`, and add a `Provider` plus an `Alert` (`notification.toolkit.fluxcd.io/v1beta3`) for events of severity `error` from all Kustomizations and HelmReleases. Break a release on purpose and receive the alert.
 
-2. **Renovate** — enable [Renovate](https://docs.renovatebot.com/modules/manager/flux/) on the repository. Its Flux manager detects `HelmRelease`, `HelmRepository` and `OCIRepository` versions and opens pull requests when cert-manager, Longhorn or authentik release new versions, and CI validates them before you merge.
+2. **Renovate**: enable [Renovate](https://docs.renovatebot.com/modules/manager/flux/) on the repository. Its Flux manager detects `HelmRelease`, `HelmRepository` and `OCIRepository` versions and opens pull requests when cert-manager, Longhorn or authentik release new versions, and CI validates them before you merge.
 
-3. **Webhook receiver** — instead of polling GitHub every minute, expose a notification-controller `Receiver` through the Gateway and configure a GitHub webhook, so pushes are applied within seconds. Think about how GitHub can reach a homelab (a tunnel is usually needed).
+3. **Webhook receiver**: instead of polling GitHub every minute, expose a notification-controller `Receiver` through the Gateway and configure a GitHub webhook, so pushes are applied within seconds. Think about how GitHub can reach a homelab (a tunnel is usually needed).
 
-4. **A staging environment** — the `apps/staging/` and `clusters/staging/` directories are already in place. Add image policies that accept pre-releases (`>=1.0.0-0` for images, `>=0.1.0-0` for the chart) to the staging overlay and a `clusters/staging/` entrypoint with its own `cluster-settings`. Promote a release candidate to staging, then a final version to prod.
+4. **A staging environment**: the `apps/staging/` and `clusters/staging/` directories are already in place. Add image policies that accept pre-releases (`>=1.0.0-0` for images, `>=0.1.0-0` for the chart) to the staging overlay and a `clusters/staging/` entrypoint with its own `cluster-settings`. Promote a release candidate to staging, then a final version to prod.
 
-5. **A deterministic CA** — the homelab CA is regenerated on every rebuild, forcing you to re-run `trust-harbor-ca.sh`. Generate the CA key pair once, seal it as `homelab-ca-secret`, and drop the self-signed bootstrap issuer. Now the node trust survives rebuilds.
+5. **A deterministic CA**: the homelab CA is regenerated on every rebuild, forcing you to re-run `trust-harbor-ca.sh`. Generate the CA key pair once, seal it as `homelab-ca-secret`, and drop the self-signed bootstrap issuer. Now the node trust survives rebuilds.
 
-6. **SOPS instead of Sealed Secrets** — encrypt the platform secrets with SOPS and an age key, and configure `spec.decryption` on the `platform-secrets` Kustomization. Compare the review experience of the two approaches in a pull request.
+6. **SOPS instead of Sealed Secrets**: encrypt the platform secrets with SOPS and an age key, and configure `spec.decryption` on the `platform-secrets` Kustomization. Compare the review experience of the two approaches in a pull request.
 
-7. **End-to-end CI** — the official example also runs an `e2e.yaml` workflow that creates a [kind](https://kind.sigs.k8s.io/) cluster, installs Flux and waits for every Kustomization to be Ready. Do the same for `infra-controllers` and `infra-configs` with a `clusters/ci/` entrypoint (Longhorn needs open-iscsi, which kind nodes lack: leave it out there). Now a broken chart version fails the pull request, not your cluster.
+7. **End-to-end CI**: the official example also runs an `e2e.yaml` workflow that creates a [kind](https://kind.sigs.k8s.io/) cluster, installs Flux and waits for every Kustomization to be Ready. Do the same for `infra-controllers` and `infra-configs` with a `clusters/ci/` entrypoint (Longhorn needs open-iscsi, which kind nodes lack: leave it out there). Now a broken chart version fails the pull request, not your cluster.
 
-8. **Progressive delivery** — install [Flagger](https://flagger.app/) and turn the frontend rollout into a canary behind the Gateway: new versions receive a percentage of traffic and are promoted only if metrics stay healthy (combine with Phase 10 once Prometheus is running).
+8. **Progressive delivery**: install [Flagger](https://flagger.app/) and turn the frontend rollout into a canary behind the Gateway: new versions receive a percentage of traffic and are promoted only if metrics stay healthy (combine with Phase 10 once Prometheus is running).
 
-9. **Least-privilege Git access** — source-controller only needs to read the repository, yet the `flux-system` token can also push. `ImageUpdateAutomation` pushes with the credential of the `GitRepository` in its `sourceRef`, so it can have its own. Recreate the `flux-system` Secret with a *Contents: Read-only* token. Then add a second `GitRepository` (`flux-automation`, same URL and branch) to `image-automation/`, whose `secretRef` points to a Secret holding a *Contents: Read and write* token, and point the automation's `sourceRef` at it. Seal that Secret instead of creating it by hand. Now a compromised source-controller cannot write to Git, and revoking the write token stops automation without stopping delivery.
+9. **Least-privilege Git access**: source-controller only needs to read the repository, yet the `flux-system` token can also push. `ImageUpdateAutomation` pushes with the credential of the `GitRepository` in its `sourceRef`, so it can have its own. Recreate the `flux-system` Secret with a *Contents: Read-only* token. Then add a second `GitRepository` (`flux-automation`, same URL and branch) to `image-automation/`, whose `secretRef` points to a Secret holding a *Contents: Read and write* token, and point the automation's `sourceRef` at it. Seal that Secret instead of creating it by hand. Now a compromised source-controller cannot write to Git, and revoking the write token stops automation without stopping delivery.
 
 ---
 

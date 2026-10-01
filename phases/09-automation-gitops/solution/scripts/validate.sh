@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validates the Phase 09 GitOps manifests offline — the same checks CI runs
+# Validates the Phase 09 GitOps manifests offline: the same checks CI runs
 # on every pull request (.github/workflows/gitops-validate.yaml).
 #
 #   1. Every YAML file parses

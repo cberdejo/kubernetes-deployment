@@ -1,5 +1,5 @@
 # image-reflector-controller lists the tags of each repository in Harbor.
-# The todo project is public, so no credentials are needed — only CA trust.
+# The todo project is public, so no credentials are needed, only CA trust.
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:

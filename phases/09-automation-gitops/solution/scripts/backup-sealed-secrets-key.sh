@@ -35,7 +35,7 @@ fi
 # every key (active and inactive), not just the newest.
 COUNT="$(kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key \
   --no-headers 2>/dev/null | wc -l)"
-[[ "$COUNT" -gt 0 ]] || err "No Sealed Secrets keys found in kube-system — is the controller running?"
+[[ "$COUNT" -gt 0 ]] || err "No Sealed Secrets keys found in kube-system. Is the controller running?"
 
 umask 077
 kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > "$OUT"
