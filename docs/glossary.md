@@ -13,3 +13,4 @@ Quick reference index, click a phase to open its glossary.
 | [Phase 06](glossary/glossary-phase-06.md) | Routing and Traffic Exposure | Gateway API, GatewayClass, HTTPRoute, MetalLB, cert-manager, TLS Termination, Envoy… |
 | [Phase 07](glossary/glossary-phase-07.md) | Identity and Access Management | IdP, Forward Auth, OAuth 2.0, OIDC, SSO, Authentik, Flow, Stage, Policy, Outpost, Proxy Provider, SecurityPolicy, ext-auth, MFA… |
 | [Phase 08](glossary/glossary-phase-08.md) | Private Container Registry | Container Registry, OCI, Distribution Spec, Image Manifest, Tag, Digest, Harbor, Harbor Project, Robot Account, Trivy, registries.yaml… |
+| [Phase 09](glossary/glossary-phase-09.md) | Automation and GitOps | GitOps, Reconciliation Loop, Drift, Pruning, Flux CD, Flux Operator, FluxInstance, Kustomization, HelmRelease, dependsOn, ImagePolicy, ImageUpdateAutomation… |
