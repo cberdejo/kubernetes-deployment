@@ -46,6 +46,7 @@ The project is still a work in progress, and new phases will be added over time.
 | [Phase 06](/phases/06-routing-and-traffic-exposure/)| Expose services through managed HTTPS routing. Learn Envoy Gateway, Gateway API, cert-manager, MetalLB, domain-based routing. |
 | [Phase 07](/phases/07-Identity-and-access-management/)| Centralize authentication with authentik. Learn forward-auth with Envoy Gateway, Proxy Providers, SSO, user and group management, and identity-aware access control for applications and platform UIs. |
 | [Phase 08](/phases/08-private-container-registry/)| Deploy Harbor as a private container registry. Push and pull application images with version control, publish Helm charts via OCI, and configure k3s to trust the internal registry. |
+| [Phase 09](/phases/09-automation-gitops/)          | Replace every manual `helm install` with GitOps. Learn Flux CD with the Flux Operator, layered Kustomizations with `dependsOn`, HelmReleases from Harbor OCI, Sealed Secrets in Git, drift correction, and image automation that deploys new releases by committing to Git. |
 
 ## Recommended Lab Environment
 

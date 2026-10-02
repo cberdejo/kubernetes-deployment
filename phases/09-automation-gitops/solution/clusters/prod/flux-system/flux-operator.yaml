@@ -1,0 +1,33 @@
+# The Flux Operator manages itself: bootstrap.sh installs it with the Helm CLI
+# and this HelmRelease adopts that release (same name and namespace).
+# This tag is the single source of the operator version: bootstrap.sh reads it
+# from here, so upgrading the operator is a one-line commit.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: flux-operator
+  namespace: flux-system
+spec:
+  interval: 12h
+  url: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator
+  ref:
+    tag: "0.60.0"
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flux-operator
+  namespace: flux-system
+spec:
+  interval: 30m
+  releaseName: flux-operator
+  chartRef:
+    kind: OCIRepository
+    name: flux-operator
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace

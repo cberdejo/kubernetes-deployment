@@ -1,0 +1,12 @@
+# Read by Flux's source-controller (same syntax as .gitignore): paths listed
+# here are left out of the artifact it builds from this repository.
+#
+# Flux only needs the Phase 09 manifests, so everything else (the other
+# phases, the application source code, docs, CI) is excluded. Syncs stay
+# small, and a change elsewhere in the repository never reaches the cluster.
+/*
+!/phases/
+/phases/*
+!/phases/09-automation-gitops/
+/phases/09-automation-gitops/*
+!/phases/09-automation-gitops/solution/

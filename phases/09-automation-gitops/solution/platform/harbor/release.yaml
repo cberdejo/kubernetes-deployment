@@ -1,0 +1,76 @@
+# Harbor itself is installed from the public chart repository, never from
+# Harbor: a registry cannot be a dependency of its own installation.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: harbor
+  namespace: harbor
+spec:
+  interval: 30m
+  releaseName: harbor
+  timeout: 10m
+  chart:
+    spec:
+      chart: harbor
+      version: 1.19.2
+      sourceRef:
+        kind: HelmRepository
+        name: harbor
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  valuesFrom:
+    - kind: Secret
+      name: harbor-secrets
+      valuesKey: admin_password
+      targetPath: harborAdminPassword
+    - kind: Secret
+      name: harbor-secrets
+      valuesKey: secret_key
+      targetPath: secretKey
+  values:
+    expose:
+      type: clusterIP
+      tls:
+        enabled: false
+      clusterIP:
+        name: harbor
+        ports:
+          httpPort: 80
+    externalURL: https://harbor.local
+    persistence:
+      enabled: true
+      persistentVolumeClaim:
+        registry:
+          storageClass: longhorn
+          size: 5Gi
+        jobservice:
+          jobLog:
+            storageClass: longhorn
+            size: 1Gi
+        database:
+          storageClass: longhorn
+          size: 1Gi
+        redis:
+          storageClass: longhorn
+          size: 1Gi
+        trivy:
+          storageClass: longhorn
+          size: 2Gi
+    portal:
+      replicas: 1
+    core:
+      replicas: 1
+    jobservice:
+      replicas: 1
+    registry:
+      replicas: 1
+    nginx:
+      replicas: 1
+    trivy:
+      enabled: false
+    logLevel: warning

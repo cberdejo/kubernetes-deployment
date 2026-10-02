@@ -1,0 +1,72 @@
+name: gitops-validate
+
+on:
+  pull_request:
+    paths:
+      - "phases/*/solution/**"
+      - ".github/workflows/gitops-validate.yaml"
+      - ".sourceignore"
+  push:
+    branches: [main]
+    paths:
+      - "phases/*/solution/**"
+      - ".github/workflows/gitops-validate.yaml"
+      - ".sourceignore"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      # Bump the version and its checksum together (from each release's
+      # CHECKSUMS / checksums.txt file).
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+      KUSTOMIZE_VERSION: v5.8.1
+      KUSTOMIZE_SHA256: 029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform and kustomize
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSLo kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          curl -fsSLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          sha256sum --check --strict <<EOF
+          ${KUBECONFORM_SHA256}  kubeconform.tar.gz
+          ${KUSTOMIZE_SHA256}  kustomize.tar.gz
+          EOF
+          sudo tar xzf kubeconform.tar.gz -C /usr/local/bin kubeconform
+          sudo tar xzf kustomize.tar.gz -C /usr/local/bin kustomize
+          kubeconform -v && kustomize version
+          # Ubuntu 24.04 blocks pip installs into the system Python (PEP 668)
+          python3 -c "import yaml" 2>/dev/null || sudo apt-get install -y python3-yaml
+
+      - name: Find GitOps phases
+        id: phases
+        run: |
+          phases="$(find phases -path '*/solution/scripts/validate.sh' | cut -d/ -f2 | sort | tr '\n' ' ')"
+          [[ -n "$phases" ]] || { echo "No phase ships solution/scripts/validate.sh"; exit 1; }
+          echo "Validating: $phases"
+          echo "list=$phases" >> "$GITHUB_OUTPUT"
+
+      - name: Lint scripts
+        # shellcheck is preinstalled on GitHub-hosted Ubuntu runners
+        run: |
+          shellcheck --version
+          for phase in ${{ steps.phases.outputs.list }}; do
+            echo "::group::shellcheck $phase"
+            find "phases/$phase/solution" -name '*.sh' -print0 | xargs -0 shellcheck
+            echo "::endgroup::"
+          done
+
+      - name: Validate manifests
+        run: |
+          for phase in ${{ steps.phases.outputs.list }}; do
+            echo "::group::validate $phase"
+            "./phases/$phase/solution/scripts/validate.sh"
+            echo "::endgroup::"
+          done
