@@ -1,0 +1,23 @@
+{{- if .Values.backend.metrics.serviceMonitor.enabled }}
+# Tells the Prometheus Operator to scrape the backend's /metrics endpoint.
+# Requires the monitoring.coreos.com CRDs in the cluster.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "todo-app.fullname" . }}-backend
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+    {{- with .Values.backend.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "todo-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  endpoints:
+    - port: http
+      path: {{ .Values.backend.metrics.path }}
+      interval: {{ .Values.backend.metrics.serviceMonitor.interval }}
+{{- end }}
