@@ -1,0 +1,22 @@
+# Flux needs to trust the homelab CA to pull the chart and scan images from
+# https://harbor.local. A Certificate issued by the CA issuer gets the CA cert
+# in its "ca.crt" key, which is exactly what certSecretRef expects; this
+# copies the public CA into flux-system without exposing the CA private key.
+#
+# The Secret also holds tls.crt/tls.key (a leaf certificate, not the CA key).
+# Flux would offer them as a client certificate, but a TLS client only sends
+# one when the server asks for it, and the Envoy Gateway in front of Harbor
+# never does. The cleaner alternative, trust-manager copying only ca.crt, adds
+# one more controller to the platform for no functional gain here.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: homelab-ca-bundle
+  namespace: flux-system
+spec:
+  secretName: homelab-ca-bundle
+  commonName: flux-system.homelab
+  duration: 8760h
+  issuerRef:
+    name: homelab-ca
+    kind: ClusterIssuer

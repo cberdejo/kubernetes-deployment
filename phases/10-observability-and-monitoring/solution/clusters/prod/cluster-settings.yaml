@@ -1,0 +1,15 @@
+# Cluster-specific values injected into manifests with Flux post-build
+# variable substitution (${VAR}). Change them here; never hardcode them
+# in the manifests of the layers.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-settings
+  namespace: flux-system
+data:
+  CLUSTER_NAME: prod
+  # IP range MetalLB hands out to LoadBalancer Services (must be free on your LAN)
+  METALLB_POOL_RANGE: 172.22.239.200-172.22.239.210
+  # Fixed IP for the Envoy Gateway. Must belong to METALLB_POOL_RANGE.
+  # Pinning it keeps /etc/hosts and the in-cluster DNS entries stable across rebuilds.
+  GATEWAY_IP: 172.22.239.200

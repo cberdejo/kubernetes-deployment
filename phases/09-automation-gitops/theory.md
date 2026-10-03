@@ -96,7 +96,7 @@ There are two supported ways to install Flux:
 | **Configuration** | Kustomize patches on generated YAML | Typed fields: `multitenant`, `networkPolicy`, `size`, `components`… |
 | **Self-management** | Flux manages its own manifests | The operator reconciles the `FluxInstance`, which is itself stored in Git |
 
-This phase uses the **Flux Operator**, the method now used by the official Flux examples. The bootstrap script installs the operator and applies `flux-instance.yaml` once; from then on the `FluxInstance` and even the operator's own `HelmRelease` are reconciled from Git. Adding the image automation controllers, for example, was a two-line change in `components`.
+`flux bootstrap` is still the method the Flux documentation recommends by default; the official [flux2-kustomize-helm-example](https://github.com/fluxcd/flux2-kustomize-helm-example) documents both. This phase uses the **Flux Operator** for what it adds: typed configuration, declarative upgrades of Flux and of the operator itself, and no need for the CLI to write to Git. The bootstrap script installs the operator and applies `flux-instance.yaml` once; from then on the `FluxInstance` and even the operator's own `HelmRelease` are reconciled from Git. Adding the image automation controllers, for example, was a two-line change in `components`.
 
 Both versions are pinned exactly (Flux `2.9.5` in the `FluxInstance`, operator `0.60.0` in its `HelmRelease`) and each lives in exactly one file. A floating `2.9.x` is convenient, but then two rebuilds a month apart run different software, which is the drift GitOps exists to prevent.
 
@@ -120,10 +120,10 @@ The Flux `Kustomization` points at a path; Kustomize builds that path using its 
 
 A `HelmRelease` is a Helm release whose lifecycle is owned by helm-controller instead of your terminal. It adds what the CLI does not do on its own:
 
-- **Remediation**: `install.remediation.retries` and `upgrade.remediation.retries` retry failed operations and roll back automatically after the last failure.
+- **Failure handling**: two strategies. The default, *remediate on failure* (`install.remediation.retries`, `upgrade.remediation.retries`), retries and then rolls back to the last release that worked, which suits stateless workloads. *Retry on failure* (`install.strategy.name: RetryOnFailure`) never rolls back and keeps retrying, which the Flux docs recommend for StatefulSets and anything that cannot tolerate a rollback; this phase uses it for Longhorn, which refuses to downgrade. The official example uses `RetryOnFailure` everywhere.
 - **CRD lifecycle**: plain Helm installs CRDs from `crds/` once and never upgrades them. `crds: CreateReplace` keeps them current, which matters for Envoy Gateway (Gateway API CRDs) and Longhorn.
 - **Values from Secrets**: `valuesFrom` injects keys from a `Secret` or `ConfigMap` at a `targetPath`, so passwords never appear in the `HelmRelease`. This replaces the `--set-string "harbor.harborAdminPassword=${...}"` flags of Phase 08.
-- **Drift detection**: compares the live objects with the rendered chart and reverts manual edits.
+- **Drift detection**: compares the live objects with the rendered chart and reverts manual edits. The Flux docs recommend it for production; this phase enables it only on the todo-app, where Step 11 of `tasks.md` shows it at work.
 - **Sources**: the chart comes from a `HelmRepository` (classic `index.yaml`) or an `OCIRepository` (`oci://` registries such as quay.io, Docker Hub or your own Harbor).
 
 ### From wrapper charts to HelmReleases
@@ -146,7 +146,7 @@ The wrapper existed to bundle "chart + extras + order" into one `helm install`. 
 
 Phase 08's bootstrap encoded a dependency graph as the order of shell commands. Here the same graph is data:
 
-The dependency chain has five layers. **infra-controllers** (Sealed Secrets, MetalLB, cert-manager, Envoy Gateway, Longhorn) installs the operators and their CRDs. Two layers depend on it: **infra-configs** (IPAddressPool, ClusterIssuers, Gateway, TLS certificate, CoreDNS, CA bundle: custom resources that need the CRDs above) and **platform-secrets** (SealedSecrets for authentik and Harbor). Once both are ready, **platform** (authentik, Harbor, Longhorn UI behind SSO) can start. Platform in turn gates **apps** (the todo-app, with chart and images pulled from Harbor) and **image-automation** (watches Harbor for new tags and commits them back to Git).
+The dependency chain has five layers. **infra-controllers** (Sealed Secrets, MetalLB, cert-manager, Envoy Gateway, Longhorn) installs the operators and their CRDs. Two layers depend on it: **infra-configs** (IPAddressPool, ClusterIssuers, Gateway, TLS certificate, CoreDNS, CA bundle: custom resources that need the CRDs above) and **platform-secrets** (SealedSecrets for authentik and Harbor, plus the `authentik` and `harbor` namespaces they go into). Once both are ready, **platform** (authentik, Harbor, Longhorn UI behind SSO) can start. Platform in turn gates **apps** (the todo-app, with chart and images pulled from Harbor) and **image-automation** (watches Harbor for new tags and commits them back to Git).
 
 Three settings make the graph reliable:
 
@@ -155,6 +155,8 @@ Three settings make the graph reliable:
 - **`timeout` and `retryInterval`**: how long to wait for health, and how soon to retry after a failure. Transient failures (a CRD not yet registered, a webhook not yet listening) heal on the next retry instead of failing the whole bootstrap.
 
 Why split controllers and configs? Applying an `IPAddressPool` before MetalLB's CRD exists fails with *no matches for kind*. Kustomize cannot order across CRD registration; `dependsOn` can.
+
+The same rule decides where a namespace lives: in the **earliest layer that writes into it**. The SealedSecrets for authentik and Harbor are applied by `platform-secrets`, so their namespaces are declared there too (`platform-secrets/namespaces.yaml`), not next to the HelmReleases in `platform/`. Otherwise, on a clean cluster, `platform-secrets` would fail on a missing namespace, and `platform`, the layer that would create it, would wait for `platform-secrets` forever.
 
 ### Variable substitution
 
@@ -237,7 +239,7 @@ Knowing this list is part of the design: each item is documented in `bootstrap.s
 
 ## Repository Structure
 
-This phase follows the layout of the official [flux2-kustomize-helm-example](https://github.com/fluxcd/flux2-kustomize-helm-example), adapted to a single cluster with more platform layers:
+This phase follows the layout of the official [flux2-kustomize-helm-example](https://github.com/fluxcd/flux2-kustomize-helm-example), adapted to a single cluster with more platform layers. Since Flux 2.7 the example goes one step further: an `ArtifactGenerator` (from the optional `source-watcher` controller) splits the Git repository into one artifact per layer, so a change under `apps/` no longer triggers a reconciliation of `infrastructure/` and vice versa. This phase keeps a single `GitRepository`, which is simpler to follow (additional exercise 11 adds the generator):
 
 A `.sourceignore` at the repository root narrows what source-controller downloads to `solution/`, so the other phases and the application code never become part of a cluster revision.
 

@@ -1,0 +1,190 @@
+# Prometheus Operator, Prometheus, Alertmanager, Grafana, node-exporter and
+# kube-state-metrics in one chart. Grafana is NOT installed separately: this
+# chart already ships it, wired to Prometheus and Alertmanager as datasources.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 30m
+  releaseName: kube-prometheus-stack
+  timeout: 15m
+  chartRef:
+    kind: OCIRepository
+    name: kube-prometheus-stack
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    # Short, stable object names (kube-prometheus-stack-prometheus, …).
+    fullnameOverride: kube-prometheus-stack
+    # Installed in the first layer by the prometheus-operator-crds HelmRelease.
+    crds:
+      enabled: false
+
+    # ── k3s ──────────────────────────────────────────────────────────
+    # k3s runs the scheduler, controller-manager, kube-proxy and etcd (or
+    # SQLite) inside the single k3s process, without the metrics endpoints these
+    # ServiceMonitors expect. Left enabled, their targets would always be down
+    # and the matching alerts would fire forever.
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    kubeEtcd:
+      enabled: false
+    defaultRules:
+      rules:
+        etcd: false
+        kubeControllerManager: false
+        kubeProxy: false
+        kubeSchedulerAlerting: false
+        kubeSchedulerRecording: false
+        windows: false
+    windowsMonitoring:
+      enabled: false
+
+    prometheusOperator:
+      # Certificates for the operator's admission webhook come from cert-manager
+      # instead of the chart's hook Jobs (one less moving part on every upgrade).
+      admissionWebhooks:
+        certManager:
+          enabled: true
+
+    prometheus:
+      prometheusSpec:
+        # By default this Prometheus only picks up ServiceMonitors, PodMonitors
+        # and rules labelled release=kube-prometheus-stack. Selecting everything
+        # lets each chart (cert-manager, Longhorn, authentik, Harbor, todo-app)
+        # ship its own monitors without knowing the name of this release.
+        serviceMonitorSelectorNilUsesHelmValues: false
+        podMonitorSelectorNilUsesHelmValues: false
+        ruleSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        scrapeConfigSelectorNilUsesHelmValues: false
+        # Whichever limit is reached first: 10 days or 8 GB of the 10 Gi volume.
+        retention: 10d
+        retentionSize: 8GB
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 10Gi
+        resources:
+          requests:
+            cpu: 200m
+            memory: 1Gi
+          limits:
+            memory: 2Gi
+
+    alertmanager:
+      # Evaluates the chart's default alert rules (defaultRules above: Pods
+      # crash-looping, targets down, disks filling up…). No receivers on
+      # purpose: alerts are only shown in Grafana → Alerting and in the
+      # Alertmanager UI. Notifications are a receiver in alertmanager.config
+      # plus a sealed credential.
+      alertmanagerSpec:
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+
+    grafana:
+      # Grafana keeps no state worth backing up: dashboards and datasources are
+      # provisioned from Git, and users are recreated from authentik on login.
+      persistence:
+        enabled: false
+      # Break-glass local admin (when authentik is down). The chart generates a
+      # random password once and keeps it across upgrades:
+      #   kubectl get secret kube-prometheus-stack-grafana -n monitoring \
+      #     -o jsonpath='{.data.admin-password}' | base64 -d
+      adminUser: admin
+      # The client secret Grafana shares with authentik, decrypted from the
+      # SealedSecret in platform-secrets/ (same value as authentik/grafana-oidc).
+      envValueFrom:
+        GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+          secretKeyRef:
+            name: grafana-oidc
+            key: client_secret
+      # Public homelab CA (homelab-ca.yaml in this folder), so Grafana can
+      # verify https://authentik.local when exchanging the OIDC code.
+      extraSecretMounts:
+        - name: homelab-ca
+          secretName: homelab-ca-bundle
+          mountPath: /etc/grafana/homelab-ca
+          readOnly: true
+      grafana.ini:
+        server:
+          root_url: https://grafana.local
+        auth:
+          # Logging out of Grafana also ends the authentik session.
+          signout_redirect_url: https://authentik.local/application/o/grafana/end-session/
+        # Login with authentik. The provider, the application and the
+        # "Grafana Editors" group are created by the authentik blueprint in
+        # platform/authentik/blueprint-grafana.yaml.
+        auth.generic_oauth:
+          enabled: true
+          name: authentik
+          client_id: grafana
+          scopes: openid profile email
+          auth_url: https://authentik.local/application/o/authorize/
+          token_url: https://authentik.local/application/o/token/
+          api_url: https://authentik.local/application/o/userinfo/
+          tls_client_ca: /etc/grafana/homelab-ca/ca.crt
+          use_pkce: true
+          allow_sign_up: true
+          login_attribute_path: preferred_username
+          name_attribute_path: name
+          email_attribute_path: email
+          groups_attribute_path: groups
+          # authentik groups → Grafana roles. Everybody else who can log in to
+          # authentik gets read-only access.
+          role_attribute_path: >-
+            contains(groups[*], 'authentik Admins') && 'Admin' ||
+            contains(groups[*], 'Grafana Editors') && 'Editor' ||
+            'Viewer'
+      sidecar:
+        dashboards:
+          # Dashboards are ConfigMaps labelled grafana_dashboard=1 in any
+          # namespace (dashboards/ in this folder), shown in this folder.
+          folderAnnotation: grafana_folder
+          provider:
+            foldersFromFilesStructure: true
+      # Prometheus and Alertmanager are added by the chart; Loki is ours.
+      additionalDataSources:
+        - name: Loki
+          uid: loki
+          type: loki
+          access: proxy
+          url: http://loki.monitoring.svc.cluster.local:3100
+          jsonData:
+            maxLines: 1000
+      # Grafana 13 needs ~450Mi just after startup (search index, plugins).
+      # Near a 512Mi limit the Go garbage collector burns a full CPU and the
+      # UI times out behind the Gateway (504 after 15 s).
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+
+    kube-state-metrics:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 256Mi

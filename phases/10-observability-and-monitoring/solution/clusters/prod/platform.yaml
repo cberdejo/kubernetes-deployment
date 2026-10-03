@@ -1,0 +1,42 @@
+# Layer 3: encrypted secrets for the platform services (SealedSecrets), plus
+# the namespaces they go into (namespaces.yaml). Kept in its own layer so they
+# exist before the HelmReleases that read them (platform and monitoring layers).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform-secrets
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: infra-controllers   # needs the SealedSecret CRD + controller
+  interval: 1h
+  retryInterval: 2m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  # No kustomization.yaml in this folder: Flux generates one with every
+  # manifest it finds, so new sealed files are picked up automatically.
+  path: ./phases/10-observability-and-monitoring/solution/platform-secrets
+  prune: true
+---
+# Layer 4: platform services: authentik, Harbor and the Longhorn UI behind SSO.
+# Observability has its own layer next to this one (monitoring.yaml).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: infra-configs      # Gateway, certificates, StorageClass
+    - name: platform-secrets   # authentik and Harbor credentials
+  interval: 1h
+  retryInterval: 2m
+  timeout: 20m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./phases/10-observability-and-monitoring/solution/platform
+  prune: true
+  wait: true

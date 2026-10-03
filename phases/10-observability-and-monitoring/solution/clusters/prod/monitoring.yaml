@@ -1,0 +1,25 @@
+# Layer 4b: observability, next to the platform layer and not inside it.
+# apps and image-automation depend on platform only, so an unhealthy Grafana or
+# Loki never stops a new release from reaching the cluster. Same split as the
+# official flux2-monitoring-example.
+#
+# It cannot live in infra-controllers either: Grafana needs the grafana-oidc
+# Secret from platform-secrets, which itself waits for infra-controllers.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: infra-configs      # Gateway, homelab CA issuer, Longhorn StorageClass
+    - name: platform-secrets   # grafana-oidc client secret + monitoring namespace
+  interval: 1h
+  retryInterval: 2m
+  timeout: 20m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./phases/10-observability-and-monitoring/solution/monitoring
+  prune: true
+  wait: true

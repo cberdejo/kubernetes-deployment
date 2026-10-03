@@ -1,0 +1,80 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: authentik
+  namespace: authentik
+spec:
+  interval: 30m
+  releaseName: authentik
+  timeout: 10m
+  chart:
+    spec:
+      chart: authentik
+      version: 2026.8.3
+      sourceRef:
+        kind: HelmRepository
+        name: authentik
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  # Credentials come from the SealedSecret in platform-secrets/, never from Git in plaintext.
+  valuesFrom:
+    - kind: Secret
+      name: authentik-secrets
+      valuesKey: secret_key
+      targetPath: authentik.secret_key
+    - kind: Secret
+      name: authentik-secrets
+      valuesKey: bootstrap_password
+      targetPath: authentik.bootstrap_password
+    - kind: Secret
+      name: authentik-secrets
+      valuesKey: bootstrap_email
+      targetPath: authentik.bootstrap_email
+      optional: true
+    - kind: Secret
+      name: authentik-secrets
+      valuesKey: postgresql_password
+      targetPath: authentik.postgresql.password
+    - kind: Secret
+      name: authentik-secrets
+      valuesKey: postgresql_password
+      targetPath: postgresql.auth.password
+  values:
+    # Stable Service names (authentik-server, authentik-worker) that the
+    # todo-app chart and the Longhorn SecurityPolicy point to.
+    fullnameOverride: authentik
+    authentik:
+      log_level: info
+      error_reporting:
+        enabled: false
+    server:
+      replicas: 1
+      # Logins, flow executions and outpost state for Prometheus.
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+    worker:
+      replicas: 1
+      # Read by the Grafana blueprint (!Env GRAFANA_OIDC_CLIENT_SECRET).
+      env:
+        - name: GRAFANA_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: grafana-oidc
+              key: client_secret
+    # Mounted into the worker, which applies them (blueprint-grafana.yaml).
+    blueprints:
+      configMaps:
+        - authentik-blueprint-grafana
+    postgresql:
+      enabled: true
+      primary:
+        persistence:
+          storageClass: longhorn
+          size: 2Gi

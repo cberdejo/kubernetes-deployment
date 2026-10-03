@@ -68,7 +68,7 @@ Everything Flux applies must be pushed to the branch it syncs (`main`). Create t
 
 The `solution/` directory contains: `bootstrap/` with `bootstrap.sh` and `.env.example`; `clusters/prod/` with a `kustomization.yaml`, `cluster-settings.yaml`, a `flux-system/` folder (FluxInstance and Flux Operator self-management), and one Flux Kustomization file per layer (`infrastructure.yaml`, `platform.yaml`, `apps.yaml`, `image-automation.yaml`), plus `clusters/staging/.gitkeep` ready for a second environment; `infrastructure/controllers/` (one folder per component) and `infrastructure/configs/`; `platform-secrets/`; `platform/`; `apps/` with `base/todo-app/`, `prod/` and `staging/.gitkeep`; `image-automation/`; and `scripts/`.
 
-Each component folder follows the same pattern: `namespace.yaml`, `repository.yaml` (where the chart comes from), `release.yaml` (the `HelmRelease`) and a `kustomization.yaml` listing them.
+Each component folder follows the same pattern: `namespace.yaml`, `repository.yaml` (where the chart comes from), `release.yaml` (the `HelmRelease`) and a `kustomization.yaml` listing them. The exception are the namespaces that receive a SealedSecret (`authentik`, `harbor`): they live in `platform-secrets/namespaces.yaml` (Step 6).
 
 **Work on your own fork.** Flux syncs the repository in `flux-instance.yaml` (`spec.sync.url`), and image automation pushes commits to its `main` branch. Fork the repository, change that URL to your fork, and create the token for the fork.
 
@@ -336,6 +336,8 @@ git push
 ```
 
 `platform-secrets/` has no `kustomization.yaml` on purpose: Flux generates one containing every manifest in the folder, so sealing a new secret never requires editing a resource list.
+
+The folder also holds **`namespaces.yaml`**, with the `authentik` and `harbor` namespaces. A SealedSecret cannot be applied into a namespace that does not exist, and the `platform` layer that installs authentik and Harbor only starts after this one is Ready. If the namespaces lived in `platform/`, a clean cluster would wait forever. Flux applies Namespaces before any other object of the same Kustomization, so one layer is enough.
 
 ```bash
 flux reconcile kustomization platform-secrets --with-source
@@ -631,6 +633,11 @@ Because the Sealed Secrets key backup is restored before Flux starts, the Sealed
 8. **Progressive delivery**: install [Flagger](https://flagger.app/) and turn the frontend rollout into a canary behind the Gateway: new versions receive a percentage of traffic and are promoted only if metrics stay healthy (combine with Phase 10 once Prometheus is running).
 
 9. **Least-privilege Git access**: source-controller only needs to read the repository, yet the `flux-system` token can also push. `ImageUpdateAutomation` pushes with the credential of the `GitRepository` in its `sourceRef`, so it can have its own. Recreate the `flux-system` Secret with a *Contents: Read-only* token. Then add a second `GitRepository` (`flux-automation`, same URL and branch) to `image-automation/`, whose `secretRef` points to a Secret holding a *Contents: Read and write* token, and point the automation's `sourceRef` at it. Seal that Secret instead of creating it by hand. Now a compromised source-controller cannot write to Git, and revoking the write token stops automation without stopping delivery.
+
+
+10. **Validate like upstream**: the official example validates with [flux-schema](https://github.com/fluxcd/flux-schema) and also runs `flux migrate -f . --yes` in CI, failing if it changes any file: that catches API versions Flux has deprecated before an upgrade removes them. Add both steps to `gitops-validate.yaml` and compare their errors with the ones `validate.sh` reports.
+
+11. **One artifact per layer**: add `source-watcher` to the `FluxInstance` components and an `ArtifactGenerator` that splits the repository into `infrastructure`, `platform` and `apps` artifacts, then point each Flux `Kustomization` at its `ExternalArtifact`, as the current [flux2-kustomize-helm-example](https://github.com/fluxcd/flux2-kustomize-helm-example) does. Change an app value and check with `flux get kustomizations` that only `apps` reconciles.
 
 ---
 

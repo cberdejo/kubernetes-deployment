@@ -1,0 +1,77 @@
+name: app-validate
+
+# The todo-app is built into images and a chart that Flux deploys from Harbor:
+# a broken build or chart should fail here, not in the cluster.
+on:
+  pull_request:
+    paths:
+      - "application/backend/**"
+      - "application/chart/**"
+      - ".github/workflows/app-validate.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "application/backend/**"
+      - "application/chart/**"
+      - ".github/workflows/app-validate.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: application/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Same major version as the Dockerfile base image
+          node-version: 20
+          cache: npm
+          cache-dependency-path: application/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
+
+  chart:
+    runs-on: ubuntu-latest
+    env:
+      # Same pins as gitops-validate.yaml
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+      CRDS_CATALOG_REF: d373c2da9702bc9509a004db83e57263fe3bdfc1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSLo kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum --check --strict
+          sudo tar xzf kubeconform.tar.gz -C /usr/local/bin kubeconform
+          # helm is preinstalled on GitHub-hosted Ubuntu runners
+          kubeconform -v && helm version --short
+
+      - name: Lint
+        run: helm lint application/chart
+
+      - name: Render and validate
+        # Every optional feature enabled, so every template is checked.
+        run: |
+          helm template my-app application/chart \
+            --set frontend.gatewayRoute.enabled=true \
+            --set frontend.auth.enabled=true \
+            --set backend.metrics.serviceMonitor.enabled=true \
+            | kubeconform -strict -summary \
+                -schema-location default \
+                -schema-location "https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRDS_CATALOG_REF}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"

@@ -1,0 +1,15 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: prometheus-operator-crds
+  namespace: kube-system
+spec:
+  interval: 12h
+  url: oci://ghcr.io/prometheus-community/charts/prometheus-operator-crds
+  ref:
+    # Keep the CRDs on the Prometheus Operator version that kube-prometheus-stack
+    # ships (both charts list it as their appVersion).
+    tag: 32.0.1
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy

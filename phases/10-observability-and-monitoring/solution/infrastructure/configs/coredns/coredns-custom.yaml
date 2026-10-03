@@ -1,0 +1,23 @@
+# k3s-specific: CoreDNS imports every "*.server" key of this ConfigMap as an
+# extra server block. It lets pods resolve the homelab hostnames: Flux
+# source-controller and image-reflector reach harbor.local, and Grafana reaches
+# authentik.local for OIDC. /etc/hosts on your laptop is invisible to the cluster.
+#
+# The zones are the exact hostnames on purpose: a generic "local" zone would
+# also capture *.cluster.local and break every in-cluster DNS lookup.
+#
+# On Talos or other distros, adapt this to their CoreDNS customisation method.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  homelab.server: |
+    harbor.local todo.local authentik.local longhorn.local grafana.local {
+        errors
+        cache 30
+        hosts {
+            ${GATEWAY_IP} harbor.local todo.local authentik.local longhorn.local grafana.local
+        }
+    }

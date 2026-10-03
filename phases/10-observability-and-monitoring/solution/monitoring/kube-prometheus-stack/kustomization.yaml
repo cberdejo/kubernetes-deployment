@@ -1,0 +1,37 @@
+# The monitoring namespace comes from platform-secrets/namespaces.yaml (it
+# must exist before the grafana-oidc SealedSecret).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - repository.yaml
+  - release.yaml
+  - homelab-ca.yaml
+  - route.yaml
+# Grafana dashboards as code: the Grafana sidecar loads every ConfigMap
+# labelled grafana_dashboard=1 and puts it in the folder named by the
+# grafana_folder annotation. Edit a dashboard in the UI, export its JSON over
+# the file in dashboards/, and commit it.
+generatorOptions:
+  # Stable names: the sidecar does not need a new ConfigMap per change.
+  disableNameSuffixHash: true
+  labels:
+    grafana_dashboard: "1"
+configMapGenerator:
+  # State of every Flux object (flux_resource_info, from the Flux Operator) and
+  # controller performance (gotk_* metrics from the Flux controllers).
+  - name: dashboard-flux
+    namespace: monitoring
+    files:
+      - dashboards/flux.json
+    options:
+      annotations:
+        grafana_folder: Platform
+  # RED view of the backend (Rate, Errors, Duration) from its own /metrics,
+  # its resource usage, and its logs from Loki on the same page.
+  - name: dashboard-todo-app
+    namespace: monitoring
+    files:
+      - dashboards/todo-app.json
+    options:
+      annotations:
+        grafana_folder: Applications

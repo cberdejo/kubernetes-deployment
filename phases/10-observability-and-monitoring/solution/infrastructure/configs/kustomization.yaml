@@ -1,0 +1,16 @@
+# Custom resources that configure the controllers from infra-controllers.
+# ${VARIABLES} are replaced by Flux from the cluster-settings ConfigMap.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - metallb/ip-address-pool.yaml
+  - metallb/l2-advertisement.yaml
+  - cert-manager/cluster-issuers.yaml
+  - gateway/envoy-proxy.yaml
+  - gateway/gateway-class.yaml
+  - gateway/gateway.yaml
+  - gateway/certificate.yaml
+  - gateway/pod-monitor.yaml
+  - coredns/coredns-custom.yaml
+  - flux/homelab-ca-bundle.yaml
+  - flux/monitors.yaml

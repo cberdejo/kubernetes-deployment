@@ -1,0 +1,30 @@
+# Only the Prometheus Operator CRDs (ServiceMonitor, PodMonitor, PrometheusRule…),
+# installed in the first layer so every chart can ship its own ServiceMonitor:
+# cert-manager and Longhorn here, authentik and Harbor in the platform layer, and
+# the todo-app. The operator itself arrives later with kube-prometheus-stack
+# (monitoring layer), which is told not to install the CRDs again.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: prometheus-operator-crds
+  namespace: kube-system
+spec:
+  interval: 30m
+  releaseName: prometheus-operator-crds
+  chartRef:
+    kind: OCIRepository
+    name: prometheus-operator-crds
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    # Deleting this HelmRelease must never delete the CRDs: Helm would take
+    # every ServiceMonitor, PrometheusRule and the Prometheus server with them
+    # (same idea as crds.keep on cert-manager).
+    crds:
+      annotations:
+        helm.sh/resource-policy: keep

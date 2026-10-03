@@ -1,0 +1,42 @@
+# Declarative Flux installation managed by the Flux Operator.
+# bootstrap.sh applies this file once; from then on Flux reconciles it from Git,
+# so upgrading Flux or adding controllers is just a commit.
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+  annotations:
+    fluxcd.controlplane.io/reconcileEvery: "1h"
+    fluxcd.controlplane.io/reconcileArtifactEvery: "10m"
+    fluxcd.controlplane.io/reconcileTimeout: "5m"
+spec:
+  distribution:
+    # Pinned to an exact release so a rebuild installs the same Flux as today.
+    # Upgrading Flux is a one-line commit (a semver range such as "2.9.x"
+    # would follow patch releases automatically, at the cost of reproducibility).
+    version: "2.9.5"
+    registry: "ghcr.io/fluxcd"
+    artifact: "oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests"
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+    # Needed for Step 9 (image automation)
+    - image-reflector-controller
+    - image-automation-controller
+  cluster:
+    type: kubernetes
+    size: small
+    multitenant: false
+    networkPolicy: true
+    domain: "cluster.local"
+  sync:
+    kind: GitRepository
+    url: "https://github.com/cberdejo/kubernetes-deployment.git"
+    ref: "refs/heads/main"
+    path: "phases/10-observability-and-monitoring/solution/clusters/prod"
+    # Secret with username/password (GitHub token). Created by bootstrap.sh.
+    # The token needs write access because image automation pushes commits.
+    pullSecret: "flux-system"

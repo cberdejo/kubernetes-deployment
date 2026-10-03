@@ -1,0 +1,17 @@
+# Namespaces that receive a SealedSecret from this layer. They live here, not
+# with their HelmReleases in platform/, because platform depends on this layer:
+# a SealedSecret cannot be applied to a namespace that does not exist yet, and
+# Flux applies Namespaces before any other object of the same Kustomization.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: authentik
+  labels:
+    expose-via-gateway: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: harbor
+  labels:
+    expose-via-gateway: "true"

@@ -9,6 +9,10 @@ Encrypted `SealedSecret` manifests for the platform services. Generate them with
 The script writes `authentik-secrets.yaml` and `harbor-secrets.yaml` here. They are
 encrypted with the cluster's Sealed Secrets public key, so they are safe to commit.
 
+`namespaces.yaml` creates the `authentik` and `harbor` namespaces: the platform layer,
+which deploys authentik and Harbor, depends on this one, so the namespaces must exist
+before the SealedSecrets are applied.
+
 This folder intentionally has **no `kustomization.yaml`**: the `platform-secrets`
 Flux Kustomization generates one with every manifest it finds, so any new sealed file
 you add is applied without editing a resource list.
@@ -18,7 +22,7 @@ you add is applied without editing a resource list.
 
 ## The files in this repository are not yours
 
-The two files committed here were sealed with the author's cluster key. In your
+The two sealed files committed here were sealed with the author's cluster key. In your
 cluster they are just ciphertext that no key can open: the controller reports
 `no key could decrypt secret` and authentik and Harbor wait for their Secrets.
 

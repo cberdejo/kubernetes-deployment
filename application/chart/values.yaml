@@ -80,6 +80,15 @@ backend:
     postgresHost: ""
     postgresPort: "5432"
   existingSecret: ""
+  # The backend always serves Prometheus metrics on this path (backend 1.1.0+).
+  metrics:
+    path: /metrics
+    serviceMonitor:
+      # Renders a ServiceMonitor; needs the Prometheus Operator CRDs.
+      enabled: false
+      interval: 30s
+      # Extra labels, if your Prometheus only selects labelled monitors.
+      labels: {}
 
 postgres:
   replicaCount: 1

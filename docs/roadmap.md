@@ -229,15 +229,18 @@ Automatically synchronize cluster configuration from version-controlled manifest
 
 - Gain visibility into health, performance, and resource usage
 - Collect and query both metrics and logs from a single platform
+- Instrument the application with its own metrics
 - Integrate monitoring as part of the GitOps workflow
 
 **Technologies**
 
-- `kube-prometheus-stack` (Prometheus + Grafana + Alertmanager)
-- Loki (log aggregation)
-- Grafana Alloy (unified collector, ships logs to Loki and metrics to Prometheus)
-- metrics-server (prerequisite, enables `kubectl top` and Horizontal Pod Autoscaler)
+- `kube-prometheus-stack` (Prometheus + Alertmanager + Grafana, plus node-exporter and kube-state-metrics)
+- Prometheus Operator CRDs (`ServiceMonitor`, `PodMonitor`) so every component ships its own scrape config
+- Loki (log storage, monolithic mode on Longhorn)
+- Grafana Alloy (log collector only: ships Pod logs to Loki; Prometheus scrapes the metrics)
+- `prom-client` (application metrics on the todo-app backend)
+- authentik OIDC for Grafana login, declared with an authentik blueprint
 
 **Expected Outcome**
 
-Operate the platform with metrics, logs, dashboards, and alerting. Query application logs and cluster metrics from a single Grafana instance. Understand the full observability stack: collect → store → query → alert.
+Operate the platform from a single Grafana instance: cluster, platform (Flux, cert-manager, Longhorn, Envoy Gateway, authentik, Harbor) and application metrics next to the application logs, with dashboards provisioned from Git. Alerts come from the chart's default rules and are shown in Grafana and Alertmanager, without notifications. Understand the observability pipeline: collect → store → query → visualize.

@@ -1,0 +1,17 @@
+# Watches Harbor for new image tags and commits the new versions to Git.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: image-automation
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: platform           # Harbor must be up to be scanned
+  interval: 1h
+  retryInterval: 2m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./phases/10-observability-and-monitoring/solution/image-automation
+  prune: true

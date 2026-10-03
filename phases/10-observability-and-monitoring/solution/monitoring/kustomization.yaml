@@ -1,0 +1,10 @@
+# Observability: metrics, alerting and Grafana (kube-prometheus-stack), logs
+# stored by Loki and collected by Alloy. Applied by its own Flux Kustomization
+# (clusters/prod/monitoring.yaml), so a broken monitoring stack never blocks
+# the delivery of platform services or applications.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kube-prometheus-stack
+  - loki
+  - alloy
