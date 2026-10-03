@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - repository.yaml
   - release.yaml
+  - blueprint-grafana.yaml
   - route.yaml
   - reference-grant.yaml

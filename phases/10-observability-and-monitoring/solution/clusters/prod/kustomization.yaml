@@ -1,0 +1,12 @@
+# Entry point that Flux syncs (FluxInstance .spec.sync.path points here).
+# Everything the cluster runs is reachable from this file.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - flux-system
+  - cluster-settings.yaml
+  - infrastructure.yaml
+  - platform.yaml
+  - monitoring.yaml
+  - apps.yaml
+  - image-automation.yaml

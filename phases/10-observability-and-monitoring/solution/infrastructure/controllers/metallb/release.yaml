@@ -1,0 +1,26 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: metallb
+  namespace: metallb-system
+spec:
+  interval: 30m
+  releaseName: metallb
+  chart:
+    spec:
+      chart: metallb
+      version: 0.15.3
+      sourceRef:
+        kind: HelmRepository
+        name: metallb
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  # IPAddressPool and L2Advertisement moved to infrastructure/configs:
+  # the Helm hooks used in Phase 08 are replaced by Flux dependsOn.

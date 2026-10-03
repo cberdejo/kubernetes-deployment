@@ -1,0 +1,13 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: grafana-oidc
+  namespace: authentik
+spec:
+  encryptedData:
+    client_secret: AgATwkaC6YvlJIbWTtf/5+ObWxdV6d9U9F324CKBCd1dnQskibLdl7wMGVQuRDeESLJWrSEuvS1OkJml0Q/ll0TLyQle4S/1ZDQqyE07OHJ23ldwzZqJXeCUe4hvrSJLnBcwELuBx0t5+lZGv+WWHAxtqvWx9r0AYTUHKlym4lIVbscPDgZIU0apA7WKWL9L20H95lZjGv5VjNVQ5yt26KLNIbsKjjkYnUnLUJm/NAcsNOahxAS3mtLwxF7F7DaOMVZXCeWxAlH+N2EOD3urDIgL0wRGSL0Ddk2mC+lvsPipmFGpkVIfFGGCxfQS5g++BPYyGSLPaf6M7dHE+Qi0ida8lOnXsp144LsbVhKhjNP363Y5uXHohhfRzdmMRgSncQNO7n5fwDEhcJHKwIGxEBD4bK+tG8unl2qfze9OEQR8Exc9Y55+JuWi5UtmeHHQXV9sMfIaWwLjihfinhrJGxQPd9wj11JmLF3lRnMdWdMbpN6+kI9RQdPUfDIFtpUTvMIwAZwYKezeS3GfqcbtV4BIAetYYhUKkbZ3sf+RWOoOoyf8MDP0GSjN4lJoOGcdRo532IznTQjwLK4L5GbMMkic822HV1mIGK8MjQmLFMf/Yxa0MKlZfyOgVEF5fa1V+ACke1eTVIKsXJdPGne8MORPR+88qSi4FU6RGiH09L40kBI3k73ss6XAXA7GKDiOquXH7Y5ihcHGvzmhFl+rpKAAH8pZv695IoQImdxIWdNQwSxnDJ7vnbAtyWba8QS32HGZzDtytA5wE9Nc9V/D/ST6
+  template:
+    metadata:
+      name: grafana-oidc
+      namespace: authentik

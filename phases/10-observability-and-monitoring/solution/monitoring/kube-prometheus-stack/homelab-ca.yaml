@@ -1,0 +1,18 @@
+# Grafana calls https://authentik.local server-side to exchange the OIDC code
+# for a token, so it must trust the homelab CA. Same trick as
+# infrastructure/configs/flux/homelab-ca-bundle.yaml: a Certificate issued by
+# the CA carries the public CA in its "ca.crt" key, mounted into Grafana
+# (grafana.extraSecretMounts in release.yaml). It lives with the release, not
+# in a later layer: the Grafana Pod cannot start until this Secret exists.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: homelab-ca-bundle
+  namespace: monitoring
+spec:
+  secretName: homelab-ca-bundle
+  commonName: monitoring.homelab
+  duration: 8760h
+  issuerRef:
+    name: homelab-ca
+    kind: ClusterIssuer

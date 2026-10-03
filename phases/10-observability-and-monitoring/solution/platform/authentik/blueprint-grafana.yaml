@@ -1,0 +1,62 @@
+# authentik blueprint: the OIDC provider and application Grafana logs in with,
+# declared in Git instead of clicked together in the UI (unlike the forward-auth
+# providers of Phase 07). The authentik worker applies every blueprint mounted
+# from this ConfigMap (blueprints.configMaps in release.yaml) on startup and
+# whenever the file changes.
+#
+# The client secret is not in this file: !Env reads it from the worker's
+# environment, filled from the grafana-oidc SealedSecret (platform-secrets/).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-blueprint-grafana
+  namespace: authentik
+data:
+  grafana.yaml: |
+    version: 1
+    metadata:
+      name: Grafana OIDC
+      labels:
+        blueprints.goauthentik.io/description: OAuth2/OIDC provider and application for Grafana
+    entries:
+      # Members get the Editor role in Grafana. "authentik Admins" (akadmin)
+      # get Admin, everybody else Viewer (role_attribute_path in Grafana).
+      - model: authentik_core.group
+        state: present
+        identifiers:
+          name: Grafana Editors
+
+      - model: authentik_providers_oauth2.oauth2provider
+        id: grafana-provider
+        state: present
+        identifiers:
+          name: grafana
+        attrs:
+          client_type: confidential
+          client_id: grafana
+          client_secret: !Env GRAFANA_OIDC_CLIENT_SECRET
+          # authentik checks every authorization request against this list.
+          grant_types:
+            - authorization_code
+            - refresh_token
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          redirect_uris:
+            - matching_mode: strict
+              url: https://grafana.local/login/generic_oauth
+          # The "profile" scope includes the user's groups.
+          property_mappings:
+            - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-openid]]
+            - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-email]]
+            - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-profile]]
+
+      - model: authentik_core.application
+        state: present
+        identifiers:
+          slug: grafana
+        attrs:
+          name: Grafana
+          provider: !KeyOf grafana-provider
+          meta_launch_url: https://grafana.local
+          meta_description: Metrics, logs and alerts

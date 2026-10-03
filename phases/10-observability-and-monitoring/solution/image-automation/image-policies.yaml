@@ -1,0 +1,39 @@
+# Selects the newest stable semver tag. Pre-releases (1.2.0-rc.1) and
+# non-semver tags (latest, git SHAs) are ignored.
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: todo-frontend
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: todo-frontend
+  policy:
+    semver:
+      range: ">=1.0.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: todo-backend
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: todo-backend
+  policy:
+    semver:
+      range: ">=1.0.0"
+---
+# Chart versions: any new 0.x release is committed automatically. A 1.0.0
+# chart is a breaking change, so it needs a deliberate commit by hand.
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: todo-app-chart
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: todo-app-chart
+  policy:
+    semver:
+      range: ">=0.1.0 <1.0.0"

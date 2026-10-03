@@ -1,0 +1,21 @@
+# The Envoy proxies created by Envoy Gateway for public-gateway. Every request
+# to todo.local, harbor.local, grafana.local… goes through them, so they give
+# request rates, latencies and response codes per route without touching the
+# applications.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-proxy
+  namespace: envoy-gateway
+spec:
+  namespaceSelector:
+    matchNames:
+      - envoy-gateway
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: envoy
+      app.kubernetes.io/component: proxy
+      app.kubernetes.io/managed-by: envoy-gateway
+  podMetricsEndpoints:
+    - port: metrics
+      path: /stats/prometheus

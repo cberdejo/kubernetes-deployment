@@ -1,0 +1,83 @@
+# Loki stores the logs that Alloy pushes. Monolithic mode: every Loki
+# component in a single Pod, with chunks and index on a Longhorn volume.
+# Object storage (S3, MinIO) only becomes necessary in the scalable modes.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  interval: 30m
+  releaseName: loki
+  timeout: 10m
+  chartRef:
+    kind: OCIRepository
+    name: loki
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    deploymentMode: Monolithic
+    loki:
+      # Single tenant: no X-Scope-OrgID header needed from Alloy or Grafana.
+      auth_enabled: false
+      commonConfig:
+        replication_factor: 1
+      storage:
+        type: filesystem
+      schemaConfig:
+        configs:
+          - from: "2024-04-01"
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: loki_index_
+              period: 24h
+      # Logs older than 7 days are deleted by the compactor.
+      limits_config:
+        retention_period: 168h
+      compactor:
+        retention_enabled: true
+        delete_request_store: filesystem
+    singleBinary:
+      replicas: 1
+      persistence:
+        enabled: true
+        storageClass: longhorn
+        size: 5Gi
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+    # Zero out the components of the other deployment modes.
+    backend:
+      replicas: 0
+    read:
+      replicas: 0
+    write:
+      replicas: 0
+    # Memcached caches only pay off with heavy query load (and they reserve
+    # gigabytes of memory by default).
+    chunksCache:
+      enabled: false
+    resultsCache:
+      enabled: false
+    # The nginx gateway routes reads and writes in the scalable modes. With a
+    # single Pod, Alloy and Grafana talk to the loki Service directly.
+    gateway:
+      enabled: false
+    lokiCanary:
+      enabled: false
+    test:
+      enabled: false
+    # Loki's own metrics for Prometheus.
+    monitoring:
+      serviceMonitor:
+        enabled: true

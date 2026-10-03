@@ -1,0 +1,43 @@
+# Flux is installed before the Prometheus Operator CRDs exist (clusters/prod/
+# flux-system), so its monitors live here instead of in its own Helm values.
+# The CRDs come from infra-controllers (prometheus-operator-crds).
+#
+# The Flux Operator reports the state of every Flux object as
+# flux_resource_info{kind, name, exported_namespace, ready, suspended, …}:
+# the data behind the Flux dashboard (monitoring/kube-prometheus-stack/dashboards/).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: flux-operator
+  namespace: flux-system
+spec:
+  namespaceSelector:
+    matchNames:
+      - flux-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flux-operator
+      app.kubernetes.io/instance: flux-operator
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
+---
+# The Flux controllers (source, kustomize, helm, notification, image-*):
+# reconciliation durations, queue depth, controller-runtime and Go metrics.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: flux-controllers
+  namespace: flux-system
+spec:
+  namespaceSelector:
+    matchNames:
+      - flux-system
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/part-of
+        operator: In
+        values: [flux]
+  podMetricsEndpoints:
+    - port: http-prom

@@ -1,0 +1,18 @@
+# Layer 5: business applications.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: platform           # images and chart come from Harbor; SSO from authentik
+  interval: 10m
+  retryInterval: 2m
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./phases/10-observability-and-monitoring/solution/apps/prod
+  prune: true
+  wait: true

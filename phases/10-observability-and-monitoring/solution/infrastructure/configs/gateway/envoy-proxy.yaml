@@ -1,0 +1,15 @@
+# Pins the Gateway's LoadBalancer IP. Without it MetalLB picks any free IP
+# from the pool, and /etc/hosts plus the CoreDNS entries could break on rebuild.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: public-gateway-proxy
+  namespace: envoy-gateway
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: LoadBalancer
+        annotations:
+          metallb.io/loadBalancerIPs: ${GATEWAY_IP}

@@ -1,0 +1,45 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+  namespace: longhorn
+spec:
+  interval: 30m
+  # The ServiceMonitor below needs the Prometheus Operator CRDs, which are
+  # installed by another HelmRelease of this same layer.
+  dependsOn:
+    - name: prometheus-operator-crds
+      namespace: kube-system
+  releaseName: longhorn
+  timeout: 10m
+  chart:
+    spec:
+      chart: longhorn
+      version: 1.11.0
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+  # Retry instead of remediating: install remediation uninstalls the release,
+  # which Longhorn blocks (deleting-confirmation-flag) and leaves stuck in
+  # "uninstalling"; upgrade remediation rolls back, and Longhorn cannot downgrade.
+  install:
+    crds: CreateReplace
+    strategy:
+      name: RetryOnFailure
+  upgrade:
+    crds: CreateReplace
+    strategy:
+      name: RetryOnFailure
+  values:
+    persistence:
+      defaultClassReplicaCount: 1
+    defaultSettings:
+      defaultReplicaCount: '{"v1":"1","v2":"1"}'
+    # Required for GitOps tools: the pre-upgrade hook Job blocks
+    # helm-controller upgrades (same setting as Phases 05–08).
+    preUpgradeChecker:
+      jobEnabled: false
+    # Volume robustness, capacity and node health for Prometheus.
+    metrics:
+      serviceMonitor:
+        enabled: true

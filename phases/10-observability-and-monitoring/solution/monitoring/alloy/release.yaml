@@ -1,0 +1,98 @@
+# Grafana Alloy ships Pod logs to Loki, and only that: metrics are scraped by
+# Prometheus itself (ServiceMonitors/PodMonitors), so the two never overlap.
+# Alloy replaces Promtail, which reached end of life in March 2026.
+#
+# One Alloy Pod per node (DaemonSet). Each one only follows the Pods of its own
+# node and reads their logs through the Kubernetes API (the same stream as
+# `kubectl logs`), so it needs no hostPath mounts and no privileges.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alloy
+  namespace: monitoring
+spec:
+  interval: 30m
+  releaseName: alloy
+  chart:
+    spec:
+      chart: alloy
+      version: 1.13.0
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+  # Pushing to Loki needs Loki up first.
+  dependsOn:
+    - name: loki
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    # The PodLogs CRD is only needed by the loki.source.podlogs component.
+    crds:
+      create: false
+    controller:
+      type: daemonset
+    serviceMonitor:
+      enabled: true
+    alloy:
+      resources:
+        requests:
+          cpu: 20m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+      configMap:
+        content: |
+          // 1. Discover the Pods running on this node (HOSTNAME is the node
+          //    name, injected by the chart).
+          discovery.kubernetes "pods" {
+            role = "pod"
+            selectors {
+              role  = "pod"
+              field = "spec.nodeName=" + sys.env("HOSTNAME")
+            }
+          }
+
+          // 2. Turn Kubernetes metadata into Loki labels. Keep them few and
+          //    low-cardinality: every unique label combination is a new stream.
+          discovery.relabel "pods" {
+            targets = discovery.kubernetes.pods.targets
+
+            rule {
+              source_labels = ["__meta_kubernetes_namespace"]
+              target_label  = "namespace"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_name"]
+              target_label  = "pod"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_name"]
+              target_label  = "container"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+              target_label  = "app"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_node_name"]
+              target_label  = "node"
+            }
+          }
+
+          // 3. Follow the logs of those containers.
+          loki.source.kubernetes "pods" {
+            targets    = discovery.relabel.pods.output
+            forward_to = [loki.write.default.receiver]
+          }
+
+          // 4. Push them to Loki.
+          loki.write "default" {
+            endpoint {
+              url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+            }
+          }

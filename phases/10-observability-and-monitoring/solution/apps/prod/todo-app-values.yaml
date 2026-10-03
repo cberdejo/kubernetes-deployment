@@ -1,0 +1,20 @@
+# Homelab-specific values. The "$imagepolicy" markers let the
+# image-automation-controller rewrite the tags and commit them to Git
+# when a newer semver image lands in Harbor. Do not remove the comments.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: todo-app
+  namespace: todo
+spec:
+  values:
+    frontend:
+      replicaCount: 1
+      image:
+        repository: harbor.local/todo/frontend # {"$imagepolicy": "flux-system:todo-frontend:name"}
+        tag: "1.1.0" # {"$imagepolicy": "flux-system:todo-frontend:tag"}
+    backend:
+      replicaCount: 1
+      image:
+        repository: harbor.local/todo/backend # {"$imagepolicy": "flux-system:todo-backend:name"}
+        tag: "1.1.0" # {"$imagepolicy": "flux-system:todo-backend:tag"}

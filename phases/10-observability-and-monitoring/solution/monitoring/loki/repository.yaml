@@ -1,0 +1,15 @@
+# The Loki chart moved from grafana/helm-charts (now the Grafana Enterprise
+# Logs chart) to the grafana-community organisation.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  interval: 12h
+  url: oci://ghcr.io/grafana-community/helm-charts/loki
+  ref:
+    tag: 18.13.7
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
