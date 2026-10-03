@@ -38,6 +38,18 @@ sudo systemctl enable --now iscsid
 iscsiadm --version
 ```
 
+### Raise the inotify limit
+
+Every `kubectl logs -f`, every log collector stream (Alloy in Phase 10) and many controllers that reload their configuration open an **inotify instance**. Most distributions allow only 128 per user, and with a few dozen containers the node runs out: the kubelet then writes `failed to create fsnotify watcher: too many open files` into every log stream. Raise the limit and keep it across reboots:
+
+```bash
+echo 'fs.inotify.max_user_instances = 8192' | sudo tee /etc/sysctl.d/90-kubernetes-inotify.conf
+sudo sysctl --system
+
+# Verify
+sysctl fs.inotify.max_user_instances
+```
+
 ---
 
 ## Step 2 — Install k3s
@@ -87,6 +99,7 @@ kubectl get storageclass
 kubectl get nodes
 iscsiadm --version
 systemctl is-active iscsid
+sysctl fs.inotify.max_user_instances   # 8192
 ```
 
 All checks should pass. Return to the guide that sent you here and continue from the Longhorn installation step.

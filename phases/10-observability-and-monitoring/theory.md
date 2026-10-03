@@ -252,7 +252,7 @@ The solution uses monolithic mode with chunks and index on a Longhorn volume and
 3. `loki.source.kubernetes` follows the containers' logs through the Kubernetes API, the same stream as `kubectl logs`
 4. `loki.write` pushes them to Loki
 
-Because Alloy reads through the API instead of from `/var/log/pods` on the host, it needs no `hostPath` mounts and no privileges.
+Because Alloy reads through the API instead of from `/var/log/pods` on the host, it needs no `hostPath` mounts and no privileges. The cost is on the node: the kubelet serves each followed stream by watching the container's log file with inotify, one instance per container. With the default limit of 128 instances per user, a node with a few dozen containers runs out, and the kubelet starts writing `failed to create fsnotify watcher: too many open files` into the streams themselves. Kubernetes nodes usually raise `fs.inotify.max_user_instances`; `docs/cluster-setup/k3s.md` does it.
 
 Alloy can also scrape metrics, receive OpenTelemetry data and much more. Here it does **only logs**: Prometheus already scrapes the metrics through `ServiceMonitor`s, and having two systems scrape the same targets would double the data and the confusion.
 

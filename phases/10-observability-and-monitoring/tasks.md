@@ -54,6 +54,10 @@ The CRDs go into `infra-controllers`, the Flux and Envoy monitors into `infra-co
 # If an earlier phase is still running: /usr/local/bin/k3s-uninstall.sh, then reinstall.
 kubectl get nodes
 
+# inotify instances: Alloy follows the logs of every container, and each
+# stream costs one. The default of 128 runs out (see docs/cluster-setup/k3s.md).
+sysctl fs.inotify.max_user_instances    # 8192
+
 # Your Sealed Secrets key backup (Phase 09, Step 6a). bootstrap.sh restores it,
 # so the SealedSecrets you sealed for your cluster keep decrypting.
 ls -l ~/.homelab/sealed-secrets-key.yaml
@@ -1450,6 +1454,7 @@ Break something on purpose (write `podMetricEndpoints` instead of `podMetricsEnd
 | todo-app target `down` with 404 | Backend image older than 1.1.0 | `kubectl get deploy -n todo -o wide`; check the image policy |
 | Alerts `KubeSchedulerDown`/`KubeControllerManagerDown` firing | k3s components not disabled | Step 6 values |
 | No logs in Explore | Alloy cannot push, or Loki not ready | `kubectl logs -n monitoring ds/alloy`; `flux get hr loki -n monitoring` |
+| Loki full of `failed to create fsnotify watcher: too many open files`, in every container | The node ran out of inotify instances (default 128): each log stream Alloy follows uses one | `fs.inotify.max_user_instances = 8192` in `/etc/sysctl.d/`, then `sudo sysctl --system` (`docs/cluster-setup/k3s.md`) |
 | Logs of only some Pods | Alloy not running on that node | `kubectl get pods -n monitoring -l app.kubernetes.io/name=alloy -o wide` |
 | PVC of Prometheus or Loki `Pending` | Longhorn out of space or node not schedulable | Longhorn UI → Nodes; reduce sizes or add disk |
 | Dashboard edits disappear | Grafana has no persistence by design | Export the JSON and commit it (Step 12) |
